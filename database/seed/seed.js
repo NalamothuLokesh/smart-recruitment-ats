@@ -5,8 +5,19 @@
 
 const fs = require('fs');
 const path = require('path');
-const mysql = require('mysql2/promise');
-const dotenv = require('dotenv');
+
+// Safe module resolution: load from root or fallback to backend/node_modules
+function resolveModule(moduleName) {
+  try {
+    return require(moduleName);
+  } catch (err) {
+    const backendPath = path.resolve(__dirname, '../../backend/node_modules', moduleName);
+    return require(backendPath);
+  }
+}
+
+const mysql = resolveModule('mysql2/promise');
+const dotenv = resolveModule('dotenv');
 
 // Load environment variables from backend/.env or root .env
 const envPaths = [
