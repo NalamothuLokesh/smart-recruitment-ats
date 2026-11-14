@@ -5,7 +5,8 @@ import { Briefcase, Plus, Filter, Edit3, Eye, CheckCircle, Archive, AlertCircle 
 /**
  * ============================================================================
  * MODULE: JobManagementPage.jsx
- * ASSIGNED TO: // TODO: [Teammate 2: Job Catalog & Requisitions Engineer]
+ * ASSIGNED TO: // TODO: [Teammate 2: Recruiter Pipeline & Requisitions Lead]
+ * PAIR MODULE: src/modules/hr-pipeline/HrPipelineBoard.jsx
  * 
  * RESPONSIBILITIES:
  * 1. Requisition creation form (title, department, location, employmentType, description, requirements).

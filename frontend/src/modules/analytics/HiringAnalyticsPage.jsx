@@ -15,7 +15,8 @@ import {
 /**
  * ============================================================================
  * MODULE: HiringAnalyticsPage.jsx
- * ASSIGNED TO: // TODO: [Teammate 6: Analytics & Business Intelligence Engineer]
+ * ASSIGNED TO: // TODO: [Teammate 4: Administration, Security & Analytics Engineer]
+ * PAIR MODULE: src/modules/admin/AdminDashboard.jsx
  * 
  * RESPONSIBILITIES:
  * 1. Executive Recruitment KPIs: Total open jobs, application volume, time-to-hire, offer acceptance rate.

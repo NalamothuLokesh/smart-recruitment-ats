@@ -5,7 +5,8 @@ import { ShieldCheck, UserPlus, Users, Activity, CheckCircle2, XCircle, Search, 
 /**
  * ============================================================================
  * MODULE: AdminDashboard.jsx
- * ASSIGNED TO: // TODO: [Teammate 1: Admin & System Operations Engineer]
+ * ASSIGNED TO: // TODO: [Teammate 4: Administration, Security & Analytics Engineer]
+ * PAIR MODULE: src/modules/analytics/HiringAnalyticsPage.jsx
  * 
  * RESPONSIBILITIES:
  * 1. User Directory management (search, filter by role).

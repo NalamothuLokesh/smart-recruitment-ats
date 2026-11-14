@@ -7,7 +7,8 @@ import { Briefcase, MapPin, Search, CheckCircle2, AlertCircle, ArrowUpRight, Upl
 /**
  * ============================================================================
  * MODULE: PublicJobBoard.jsx
- * ASSIGNED TO: // TODO: [Teammate 2: Job Catalog & Requisitions Engineer]
+ * ASSIGNED TO: // TODO: [Teammate 1: Candidate Experience & Public Portal Engineer]
+ * PAIR MODULE: src/modules/candidate/CandidateDashboard.jsx
  * 
  * RESPONSIBILITIES:
  * 1. Public Requisition Discovery: Search by keyword, department, location.

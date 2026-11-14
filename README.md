@@ -198,34 +198,42 @@ The analytics engine (`GET /api/v1/analytics/summary`) computes exact recruitmen
 
 ## 6. Teammate Division of Responsibility & Git Workflow
 
-### Modular File Ownership (Zero Merge Conflict Architecture)
-Teammates work **exclusively** within their designated files under `frontend/src/modules/`:
+### 5-Person Team Ownership (Zero Merge Conflict Architecture)
+As **Team Lead / Principal Architect**, you own 100% of the Backend, Database, Security, Central API Client, and PR Code Reviews. You do **not** code individual frontend feature modules.
 
-- **Teammate 1 (Admin)**: `src/modules/admin/AdminDashboard.jsx`
-- **Teammate 2 (Jobs)**: `src/modules/hr-jobs/JobManagementPage.jsx` & `PublicJobBoard.jsx`
-- **Teammate 3 (Pipeline)**: `src/modules/hr-pipeline/HrPipelineBoard.jsx`
-- **Teammate 4 (Interviews & Offers)**: `src/modules/interviews-offers/InterviewSchedulerPage.jsx` & `OfferOnboardingPage.jsx`
-- **Teammate 5 (Candidate Experience)**: `src/modules/candidate/CandidateDashboard.jsx`
-- **Teammate 6 (Analytics & BI)**: `src/modules/analytics/HiringAnalyticsPage.jsx`
+Your **4 teammates** work **exclusively** within their paired domain files under `frontend/src/modules/`:
+
+- **Teammate 1 (Candidate Experience & Public Portal)**:
+  - `src/modules/candidate/CandidateDashboard.jsx` (Application progress timeline, private resume upload, accept/decline offers)
+  - `src/modules/hr-jobs/PublicJobBoard.jsx` (Public job catalog, search filters, job requirements modal, 1-click apply)
+- **Teammate 2 (Recruiter Pipeline & Requisitions Lead)**:
+  - `src/modules/hr-jobs/JobManagementPage.jsx` (Requisition creation, publishing lifecycle: DRAFT/PUBLISHED/CLOSED)
+  - `src/modules/hr-pipeline/HrPipelineBoard.jsx` (6-stage Kanban board, candidate detail drawer, stage transition dialog)
+- **Teammate 3 (Interviews, Offers & Onboarding Specialist)**:
+  - `src/modules/interviews-offers/InterviewSchedulerPage.jsx` (Virtual interview booking, meeting links, evaluation scorecards)
+  - `src/modules/interviews-offers/OfferOnboardingPage.jsx` (Formal offer generator for SELECTED candidates, pre-hire onboarding checklist)
+- **Teammate 4 (Administration, Security & Analytics Engineer)**:
+  - `src/modules/admin/AdminDashboard.jsx` (User directory, role assignments: ADMIN/HR/CANDIDATE, account provisioning, audit logs)
+  - `src/modules/analytics/HiringAnalyticsPage.jsx` (Executive KPIs, visual stage conversion funnel, time-to-hire calculation)
 
 ### Git Branching Protocol
-1. Create a dedicated branch for your feature:
-   ```bash
-   git checkout -b feature/<module-name>
-   # e.g. git checkout -b feature/pipeline-board
-   ```
+1. Each teammate creates a dedicated branch for their paired modules:
+   - `feature/cand-portal` (Teammate 1)
+   - `feature/recruiter-pipeline` (Teammate 2)
+   - `feature/interviews-offers` (Teammate 3)
+   - `feature/admin-analytics` (Teammate 4)
 2. Commit your work following Conventional Commits:
    ```bash
-   git commit -m "feat(pipeline): add drag-and-drop card interaction"
+   git commit -m "feat(pipeline): add stage transition modal notes"
    ```
 3. Before submitting a Pull Request, rebase with `main`:
    ```bash
    git checkout main
    git pull origin main
-   git checkout feature/<module-name>
+   git checkout <your-branch>
    git rebase main
    ```
-4. Open a PR targeting `main`. Do not modify shared infrastructure (`src/api/client.js`, `src/App.jsx`, `backend/`) without Team Lead approval.
+4. Open a PR targeting `main`. As Team Lead, you review and verify the PR. Do not modify shared infrastructure (`src/api/client.js`, `src/App.jsx`, `backend/`) without Team Lead approval.
 
 ---
 

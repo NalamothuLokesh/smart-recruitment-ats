@@ -18,7 +18,8 @@ import {
 /**
  * ============================================================================
  * MODULE: CandidateDashboard.jsx
- * ASSIGNED TO: // TODO: [Teammate 5: Candidate Experience Engineer]
+ * ASSIGNED TO: // TODO: [Teammate 1: Candidate Experience & Public Portal Engineer]
+ * PAIR MODULE: src/modules/hr-jobs/PublicJobBoard.jsx
  * 
  * RESPONSIBILITIES:
  * 1. Candidate Application Tracker: Timeline showing stage transitions.

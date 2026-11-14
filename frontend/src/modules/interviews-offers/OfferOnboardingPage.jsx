@@ -5,7 +5,8 @@ import { Gift, CheckSquare, Square, DollarSign, Calendar, FileText, CheckCircle2
 /**
  * ============================================================================
  * MODULE: OfferOnboardingPage.jsx
- * ASSIGNED TO: // TODO: [Teammate 4: Interviews & Offers Specialist]
+ * ASSIGNED TO: // TODO: [Teammate 3: Interviews, Offers & Onboarding Specialist]
+ * PAIR MODULE: src/modules/interviews-offers/InterviewSchedulerPage.jsx
  * 
  * RESPONSIBILITIES:
  * 1. Employment Offer Generator: Draft compensation, start date, and markdown letter for SELECTED candidates.

@@ -26,7 +26,8 @@ const PIPELINE_STAGES = [
 /**
  * ============================================================================
  * MODULE: HrPipelineBoard.jsx
- * ASSIGNED TO: // TODO: [Teammate 3: Pipeline Lead & Talent Acquisition]
+ * ASSIGNED TO: // TODO: [Teammate 2: Recruiter Pipeline & Requisitions Lead]
+ * PAIR MODULE: src/modules/hr-jobs/JobManagementPage.jsx
  * 
  * RESPONSIBILITIES:
  * 1. Recruitment Pipeline Kanban Board: Render candidate cards grouped by stage.

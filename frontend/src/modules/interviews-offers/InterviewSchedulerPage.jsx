@@ -5,7 +5,8 @@ import { Calendar, Clock, Video, Star, CheckCircle, XCircle, Plus, AlertCircle }
 /**
  * ============================================================================
  * MODULE: InterviewSchedulerPage.jsx
- * ASSIGNED TO: // TODO: [Teammate 4: Interviews & Offers Specialist]
+ * ASSIGNED TO: // TODO: [Teammate 3: Interviews, Offers & Onboarding Specialist]
+ * PAIR MODULE: src/modules/interviews-offers/OfferOnboardingPage.jsx
  * 
  * RESPONSIBILITIES:
  * 1. Interview Scheduling Dialog: Select candidate application, date/time, duration, video link.
