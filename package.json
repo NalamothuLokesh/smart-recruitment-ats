@@ -1,0 +1,21 @@
+{
+  "name": "smart-recruitment-ats",
+  "version": "1.0.0",
+  "description": "Production-Structured Smart Recruitment & Applicant Tracking System (ATS)",
+  "private": true,
+  "scripts": {
+    "install:all": "npm install && cd backend && npm install && cd ../frontend && npm install",
+    "db:seed": "node database/seed/seed.js",
+    "backend:dev": "cd backend && npm run dev",
+    "backend:start": "cd backend && npm start",
+    "frontend:dev": "cd frontend && npm run dev",
+    "frontend:build": "cd frontend && npm run build",
+    "test:backend": "cd backend && npm test"
+  },
+  "devDependencies": {
+    "concurrently": "^9.1.2"
+  },
+  "author": "Principal Full-Stack Architect",
+  "license": "ISC"
+}
+
