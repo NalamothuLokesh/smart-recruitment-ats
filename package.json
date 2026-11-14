@@ -10,7 +10,8 @@
     "backend:start": "cd backend && npm start",
     "frontend:dev": "cd frontend && npm run dev",
     "frontend:build": "cd frontend && npm run build",
-    "test:backend": "cd backend && npm test"
+    "test:backend": "cd backend && npm test",
+    "test": "npm run test:backend"
   },
   "devDependencies": {
     "concurrently": "^9.1.2"
@@ -18,4 +19,3 @@
   "author": "Principal Full-Stack Architect",
   "license": "ISC"
 }
-

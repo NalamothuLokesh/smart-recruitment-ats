@@ -1,183 +1,275 @@
-import React from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
-import { 
-  Briefcase, 
-  Users, 
-  Kanban, 
-  Calendar, 
-  Gift, 
-  BarChart3, 
-  ShieldCheck, 
-  LogOut, 
-  UserCheck
+import {
+  Briefcase,
+  Search,
+  Menu,
+  ChevronDown,
+  LogOut,
+  UserCheck,
+  Kanban,
+  ShieldCheck,
+  Building,
+  User as UserIcon,
+  Sparkles,
 } from 'lucide-react';
+import ThemeToggle from './ThemeToggle';
 
-export const Navbar = () => {
-  const { user, isAuthenticated, logout } = useAuth();
+export default function Navbar({ onOpenPalette, onToggleMobileSidebar }) {
+  const { user, isAuthenticated, isHR, isAdmin, isCandidate, logout } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
+  const [dropdownOpen, setDropdownOpen] = useState(false);
+  const [isMac, setIsMac] = useState(false);
+  const menuRef = useRef(null);
+
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      setIsMac(/Mac|iPhone|iPad|iPod/.test(window.navigator.platform));
+    }
+  }, []);
+
+  // Close dropdown on outside click
+  useEffect(() => {
+    function handleClickOutside(e) {
+      if (menuRef.current && !menuRef.current.contains(e.target)) {
+        setDropdownOpen(false);
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
 
   const handleLogout = () => {
     logout();
+    setDropdownOpen(false);
     navigate('/login');
   };
+
+  const initials = user?.fullName
+    ? user.fullName
+        .split(' ')
+        .map((w) => w[0])
+        .join('')
+        .slice(0, 2)
+        .toUpperCase()
+    : user?.email
+    ? user.email.slice(0, 2).toUpperCase()
+    : 'U';
 
   const isActive = (path) => location.pathname === path;
 
   return (
-    <header className="sticky top-0 z-50 bg-white border-b border-slate-200 shadow-sm">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex items-center justify-between h-16">
-          {/* Brand Logo */}
-          <div className="flex items-center gap-8">
-            <Link to="/" className="flex items-center gap-2.5 font-bold text-slate-900 text-lg hover:opacity-90">
-              <div className="w-9 h-9 rounded-lg bg-indigo-600 flex items-center justify-center text-white shadow-sm">
-                <Briefcase className="w-5 h-5" />
-              </div>
-              <div className="flex flex-col">
-                <span className="leading-tight tracking-tight">Smart ATS</span>
-                <span className="text-[10px] uppercase font-semibold text-indigo-600 tracking-wider">Recruitment Platform</span>
-              </div>
+    <header className="navbar">
+      <div className="navbar-left">
+        {/* Mobile Sidebar Hamburger Toggle */}
+        <button
+          type="button"
+          className="nav-mobile-toggle"
+          onClick={onToggleMobileSidebar}
+          aria-label="Toggle navigation drawer"
+        >
+          <Menu size={20} />
+        </button>
+
+        {/* Brand Emblem */}
+        <Link to="/jobs" className="nav-brand">
+          <div className="nav-logo-box">
+            <Briefcase size={20} strokeWidth={2.4} className="nav-logo-icon" />
+          </div>
+          <div className="nav-brand-text">
+            <span className="nav-name">Smart ATS</span>
+            <span className="nav-badge">Recruitment</span>
+          </div>
+        </Link>
+
+        {/* Command Palette Trigger */}
+        <button
+          type="button"
+          onClick={onOpenPalette}
+          className="nav-search-trigger"
+          aria-label="Open command palette"
+        >
+          <Search size={15} className="nav-search-icon" />
+          <span className="nav-search-placeholder">
+            Search or run commands...
+          </span>
+          <kbd className="nav-kbd">
+            <span>{isMac ? '⌘' : 'Ctrl'}</span>
+            <span>K</span>
+          </kbd>
+        </button>
+      </div>
+
+      <div className="navbar-right">
+        <Link
+          to="/jobs"
+          className={`nav-link ${isActive('/jobs') ? 'nav-link-active' : ''}`}
+        >
+          <span>Job Openings</span>
+        </Link>
+
+        {isAuthenticated && (isHR || isAdmin) && (
+          <>
+            <Link
+              to="/pipeline"
+              className={`nav-link ${isActive('/pipeline') ? 'nav-link-active' : ''}`}
+            >
+              <Kanban size={15} />
+              <span>Pipeline</span>
             </Link>
 
-            {/* Navigation Links based on role */}
-            <nav className="hidden md:flex items-center gap-1 text-sm font-medium">
-              <Link
-                to="/jobs"
-                className={`px-3 py-2 rounded-lg transition-colors ${
-                  isActive('/jobs') ? 'bg-indigo-50 text-indigo-700 font-semibold' : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
-                }`}
-              >
-                Job Openings
-              </Link>
+            <Link
+              to="/analytics"
+              className={`nav-link ${isActive('/analytics') ? 'nav-link-active' : ''}`}
+            >
+              <Sparkles size={15} className="text-indigo-500" />
+              <span>Analytics</span>
+            </Link>
+          </>
+        )}
 
-              {isAuthenticated && user?.role === 'CANDIDATE' && (
-                <Link
-                  to="/candidate"
-                  className={`px-3 py-2 rounded-lg transition-colors ${
-                    isActive('/candidate') ? 'bg-indigo-50 text-indigo-700 font-semibold' : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
-                  }`}
-                >
-                  My Applications
-                </Link>
-              )}
+        {isAuthenticated && isCandidate && (
+          <Link
+            to="/candidate"
+            className={`nav-link ${isActive('/candidate') ? 'nav-link-active' : ''}`}
+          >
+            <UserCheck size={15} />
+            <span>My Applications</span>
+          </Link>
+        )}
 
-              {isAuthenticated && (user?.role === 'HR' || user?.role === 'ADMIN') && (
-                <>
-                  <Link
-                    to="/hr/jobs"
-                    className={`px-3 py-2 rounded-lg transition-colors flex items-center gap-1.5 ${
-                      isActive('/hr/jobs') ? 'bg-indigo-50 text-indigo-700 font-semibold' : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
-                    }`}
-                  >
-                    <Briefcase className="w-4 h-4" />
-                    Manage Jobs
-                  </Link>
+        {isAuthenticated && isAdmin && (
+          <Link
+            to="/admin"
+            className={`nav-link nav-admin-link ${isActive('/admin') ? 'nav-link-active' : ''}`}
+          >
+            <ShieldCheck size={15} />
+            <span>Admin</span>
+          </Link>
+        )}
 
-                  <Link
-                    to="/pipeline"
-                    className={`px-3 py-2 rounded-lg transition-colors flex items-center gap-1.5 ${
-                      isActive('/pipeline') ? 'bg-indigo-50 text-indigo-700 font-semibold' : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
-                    }`}
-                  >
-                    <Kanban className="w-4 h-4" />
-                    Pipeline
-                  </Link>
+        <div className="nav-divider" />
 
-                  <Link
-                    to="/interviews"
-                    className={`px-3 py-2 rounded-lg transition-colors flex items-center gap-1.5 ${
-                      isActive('/interviews') ? 'bg-indigo-50 text-indigo-700 font-semibold' : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
-                    }`}
-                  >
-                    <Calendar className="w-4 h-4" />
-                    Interviews
-                  </Link>
+        {/* Theme Toggle (Dark / Light) */}
+        <ThemeToggle />
 
-                  <Link
-                    to="/offers"
-                    className={`px-3 py-2 rounded-lg transition-colors flex items-center gap-1.5 ${
-                      isActive('/offers') ? 'bg-indigo-50 text-indigo-700 font-semibold' : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
-                    }`}
-                  >
-                    <Gift className="w-4 h-4" />
-                    Offers & Onboarding
-                  </Link>
+        {/* User Dropdown / Guest Auth CTA */}
+        {isAuthenticated ? (
+          <div className="nav-user-menu" ref={menuRef}>
+            <button
+              type="button"
+              className={`nav-avatar-btn ${dropdownOpen ? 'nav-avatar-active' : ''}`}
+              onClick={() => setDropdownOpen((v) => !v)}
+              aria-label="User navigation profile menu"
+              aria-expanded={dropdownOpen}
+            >
+              <div className="nav-avatar-text">{initials}</div>
+              <ChevronDown
+                size={14}
+                className={`nav-avatar-chevron ${dropdownOpen ? 'chevron-rotated' : ''}`}
+              />
+            </button>
 
-                  <Link
-                    to="/analytics"
-                    className={`px-3 py-2 rounded-lg transition-colors flex items-center gap-1.5 ${
-                      isActive('/analytics') ? 'bg-indigo-50 text-indigo-700 font-semibold' : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
-                    }`}
-                  >
-                    <BarChart3 className="w-4 h-4" />
-                    Analytics
-                  </Link>
-                </>
-              )}
-
-              {isAuthenticated && user?.role === 'ADMIN' && (
-                <Link
-                  to="/admin"
-                  className={`px-3 py-2 rounded-lg transition-colors flex items-center gap-1.5 ${
-                    isActive('/admin') ? 'bg-indigo-50 text-indigo-700 font-semibold' : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
-                  }`}
-                >
-                  <ShieldCheck className="w-4 h-4 text-amber-600" />
-                  Admin Console
-                </Link>
-              )}
-            </nav>
-          </div>
-
-          {/* Right: Auth Profile / Actions */}
-          <div className="flex items-center gap-3">
-            {isAuthenticated ? (
-              <div className="flex items-center gap-3">
-                <div className="text-right hidden sm:block">
-                  <div className="text-sm font-semibold text-slate-800">{user.fullName || user.email}</div>
-                  <div className="flex items-center justify-end gap-1.5 text-xs text-slate-500">
-                    <span className={`px-1.5 py-0.5 rounded text-[10px] font-bold uppercase ${
-                      user.role === 'ADMIN' ? 'bg-purple-100 text-purple-700' :
-                      user.role === 'HR' ? 'bg-blue-100 text-blue-700' : 'bg-emerald-100 text-emerald-700'
-                    }`}>
-                      {user.role}
+            {dropdownOpen && (
+              <div className="nav-user-dropdown animate-fadeIn" role="menu">
+                <div className="nav-user-info">
+                  <div className="nav-user-name">{user.fullName || 'User'}</div>
+                  <div className="nav-user-email">{user.email}</div>
+                  <div className="flex items-center gap-2 mt-1">
+                    <span
+                      className={
+                        user.role === 'ADMIN'
+                          ? 'badge-role-admin'
+                          : user.role === 'HR'
+                          ? 'badge-role-superadmin'
+                          : 'badge-role-user'
+                      }
+                    >
+                      {user.role === 'ADMIN'
+                        ? 'Administrator'
+                        : user.role === 'HR'
+                        ? 'HR Lead'
+                        : 'Candidate'}
                     </span>
-                    {user.orgName && <span className="truncate max-w-[120px]">{user.orgName}</span>}
+                    {user.orgName && (
+                      <span className="text-[11px] text-muted-foreground flex items-center gap-1">
+                        <Building size={11} /> {user.orgName}
+                      </span>
+                    )}
                   </div>
                 </div>
 
+                <div className="nav-dropdown-divider" />
+
+                {isCandidate && (
+                  <Link
+                    to="/candidate"
+                    className="nav-dropdown-item"
+                    onClick={() => setDropdownOpen(false)}
+                  >
+                    <UserCheck size={15} />
+                    <span>Candidate Dashboard</span>
+                  </Link>
+                )}
+
+                {(isHR || isAdmin) && (
+                  <>
+                    <Link
+                      to="/pipeline"
+                      className="nav-dropdown-item"
+                      onClick={() => setDropdownOpen(false)}
+                    >
+                      <Kanban size={15} />
+                      <span>Candidate Pipeline</span>
+                    </Link>
+                    <Link
+                      to="/hr/jobs"
+                      className="nav-dropdown-item"
+                      onClick={() => setDropdownOpen(false)}
+                    >
+                      <Briefcase size={15} />
+                      <span>Manage Requisitions</span>
+                    </Link>
+                  </>
+                )}
+
+                {isAdmin && (
+                  <Link
+                    to="/admin"
+                    className="nav-dropdown-item"
+                    onClick={() => setDropdownOpen(false)}
+                  >
+                    <ShieldCheck size={15} />
+                    <span>Admin Console</span>
+                  </Link>
+                )}
+
+                <div className="nav-dropdown-divider" />
+
                 <button
+                  type="button"
+                  className="nav-dropdown-item nav-logout"
                   onClick={handleLogout}
-                  title="Sign out"
-                  className="p-2 text-slate-500 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors border border-slate-200"
                 >
-                  <LogOut className="w-4 h-4" />
+                  <LogOut size={15} />
+                  <span>Sign Out</span>
                 </button>
-              </div>
-            ) : (
-              <div className="flex items-center gap-2">
-                <Link
-                  to="/login"
-                  className="px-3.5 py-2 text-sm font-medium text-slate-700 hover:text-indigo-600 rounded-lg hover:bg-slate-100 transition-colors"
-                >
-                  Sign In
-                </Link>
-                <Link
-                  to="/register"
-                  className="px-4 py-2 text-sm font-semibold text-white bg-indigo-600 hover:bg-indigo-700 rounded-lg shadow-sm transition-colors"
-                >
-                  Join as Candidate
-                </Link>
               </div>
             )}
           </div>
-        </div>
+        ) : (
+          <div className="flex items-center gap-2">
+            <Link to="/login" className="btn btn-outline btn-sm">
+              Sign In
+            </Link>
+            <Link to="/register" className="btn btn-primary btn-sm">
+              Join Candidate
+            </Link>
+          </div>
+        )}
       </div>
     </header>
   );
-};
-
-export default Navbar;
-
+}

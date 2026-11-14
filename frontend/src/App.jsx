@@ -1,7 +1,10 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider } from './context/AuthContext';
+import { ThemeProvider } from './context/ThemeContext';
 import Navbar from './components/common/Navbar';
+import Sidebar from './components/common/Sidebar';
+import CommandPalette from './components/common/CommandPalette';
 import ProtectedRoute from './components/common/ProtectedRoute';
 
 // Auth Pages
@@ -18,105 +21,159 @@ import OfferOnboardingPage from './modules/interviews-offers/OfferOnboardingPage
 import CandidateDashboard from './modules/candidate/CandidateDashboard';
 import HiringAnalyticsPage from './modules/analytics/HiringAnalyticsPage';
 
+import './App.css';
+
+function AppShell() {
+  const [paletteOpen, setPaletteOpen] = useState(false);
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(() => {
+    try {
+      return localStorage.getItem('ats_sidebar_collapsed') === 'true';
+    } catch {
+      return false;
+    }
+  });
+  const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
+
+  const handleToggleSidebar = () => {
+    setSidebarCollapsed((prev) => {
+      const next = !prev;
+      try {
+        localStorage.setItem('ats_sidebar_collapsed', String(next));
+      } catch (_) {}
+      return next;
+    });
+  };
+
+  // Global Ctrl+K / Cmd+K listener
+  useEffect(() => {
+    function handleKeyDown(e) {
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'k') {
+        e.preventDefault();
+        setPaletteOpen((prev) => !prev);
+      }
+    }
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, []);
+
+  return (
+    <div className="shell">
+      <Navbar
+        onOpenPalette={() => setPaletteOpen(true)}
+        onToggleMobileSidebar={() => setMobileSidebarOpen((o) => !o)}
+      />
+      <CommandPalette open={paletteOpen} onClose={() => setPaletteOpen(false)} />
+
+      <div className="app-layout">
+        <Sidebar
+          collapsed={sidebarCollapsed}
+          onToggleCollapse={handleToggleSidebar}
+          mobileOpen={mobileSidebarOpen}
+          onCloseMobile={() => setMobileSidebarOpen(false)}
+        />
+        <div className={`app-main-content ${sidebarCollapsed ? 'sidebar-is-collapsed' : ''}`}>
+          <Routes>
+            {/* Public Routes */}
+            <Route path="/" element={<Navigate to="/jobs" replace />} />
+            <Route path="/jobs" element={<PublicJobBoard />} />
+            <Route path="/login" element={<LoginPage />} />
+            <Route path="/register" element={<RegisterPage />} />
+
+            {/* Candidate Portal (Guarded: CANDIDATE) */}
+            <Route
+              path="/candidate"
+              element={
+                <ProtectedRoute allowedRoles={['CANDIDATE']}>
+                  <CandidateDashboard />
+                </ProtectedRoute>
+              }
+            />
+
+            {/* HR & Admin Recruitment Operations (Guarded: HR, ADMIN) */}
+            <Route
+              path="/hr/jobs"
+              element={
+                <ProtectedRoute allowedRoles={['HR', 'ADMIN']}>
+                  <JobManagementPage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/pipeline"
+              element={
+                <ProtectedRoute allowedRoles={['HR', 'ADMIN']}>
+                  <HrPipelineBoard />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/interviews"
+              element={
+                <ProtectedRoute allowedRoles={['HR', 'ADMIN']}>
+                  <InterviewSchedulerPage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/offers"
+              element={
+                <ProtectedRoute allowedRoles={['HR', 'ADMIN']}>
+                  <OfferOnboardingPage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/analytics"
+              element={
+                <ProtectedRoute allowedRoles={['HR', 'ADMIN']}>
+                  <HiringAnalyticsPage />
+                </ProtectedRoute>
+              }
+            />
+
+            {/* System Admin Console (Guarded: ADMIN) */}
+            <Route
+              path="/admin"
+              element={
+                <ProtectedRoute allowedRoles={['ADMIN']}>
+                  <AdminDashboard />
+                </ProtectedRoute>
+              }
+            />
+
+            {/* Catch-all 404 */}
+            <Route
+              path="*"
+              element={
+                <div className="max-w-md mx-auto my-20 text-center p-8 bg-card border border-border rounded-2xl shadow-sm">
+                  <h2 className="text-xl font-bold text-foreground mb-2">404 - Page Not Found</h2>
+                  <p className="text-sm text-muted-foreground mb-6">The requested page does not exist or has moved.</p>
+                  <a
+                    href="/jobs"
+                    className="btn btn-primary btn-sm"
+                  >
+                    Return to Job Board
+                  </a>
+                </div>
+              }
+            />
+          </Routes>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export function App() {
   return (
-    <AuthProvider>
-      <BrowserRouter>
-        <div className="min-h-screen flex flex-col bg-slate-50 text-slate-800">
-          <Navbar />
-          <main className="flex-1">
-            <Routes>
-              {/* Public Routes */}
-              <Route path="/" element={<Navigate to="/jobs" replace />} />
-              <Route path="/jobs" element={<PublicJobBoard />} />
-              <Route path="/login" element={<LoginPage />} />
-              <Route path="/register" element={<RegisterPage />} />
-
-              {/* Candidate Portal (Guarded: CANDIDATE) */}
-              <Route
-                path="/candidate"
-                element={
-                  <ProtectedRoute allowedRoles={['CANDIDATE']}>
-                    <CandidateDashboard />
-                  </ProtectedRoute>
-                }
-              />
-
-              {/* HR & Admin Recruitment Operations (Guarded: HR, ADMIN) */}
-              <Route
-                path="/hr/jobs"
-                element={
-                  <ProtectedRoute allowedRoles={['HR', 'ADMIN']}>
-                    <JobManagementPage />
-                  </ProtectedRoute>
-                }
-              />
-              <Route
-                path="/pipeline"
-                element={
-                  <ProtectedRoute allowedRoles={['HR', 'ADMIN']}>
-                    <HrPipelineBoard />
-                  </ProtectedRoute>
-                }
-              />
-              <Route
-                path="/interviews"
-                element={
-                  <ProtectedRoute allowedRoles={['HR', 'ADMIN']}>
-                    <InterviewSchedulerPage />
-                  </ProtectedRoute>
-                }
-              />
-              <Route
-                path="/offers"
-                element={
-                  <ProtectedRoute allowedRoles={['HR', 'ADMIN']}>
-                    <OfferOnboardingPage />
-                  </ProtectedRoute>
-                }
-              />
-              <Route
-                path="/analytics"
-                element={
-                  <ProtectedRoute allowedRoles={['HR', 'ADMIN']}>
-                    <HiringAnalyticsPage />
-                  </ProtectedRoute>
-                }
-              />
-
-              {/* System Admin Console (Guarded: ADMIN) */}
-              <Route
-                path="/admin"
-                element={
-                  <ProtectedRoute allowedRoles={['ADMIN']}>
-                    <AdminDashboard />
-                  </ProtectedRoute>
-                }
-              />
-
-              {/* Catch-all 404 */}
-              <Route
-                path="*"
-                element={
-                  <div className="max-w-md mx-auto my-20 text-center p-8 bg-white border border-slate-200 rounded-2xl shadow-sm">
-                    <h2 className="text-xl font-bold text-slate-900 mb-2">404 - Page Not Found</h2>
-                    <p className="text-sm text-slate-500 mb-6">The requested page does not exist or has moved.</p>
-                    <a
-                      href="/jobs"
-                      className="px-4 py-2 bg-indigo-600 text-white rounded-lg text-sm font-semibold"
-                    >
-                      Return to Job Board
-                    </a>
-                  </div>
-                }
-              />
-            </Routes>
-          </main>
-        </div>
-      </BrowserRouter>
-    </AuthProvider>
+    <ThemeProvider>
+      <AuthProvider>
+        <BrowserRouter>
+          <AppShell />
+        </BrowserRouter>
+      </AuthProvider>
+    </ThemeProvider>
   );
 }
 
 export default App;
-
