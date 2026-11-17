@@ -208,7 +208,7 @@ export const CandidateDashboard = () => {
         throw new Error('This browser cannot share resume files. Download the resume to share it manually.');
       }
       await navigator.share({ title: resume.original_filename, files: [file] });
-      setResumeActionMessage('Resume shared.');
+      setResumeActionMessage('Resume file shared successfully.');
     } catch (err) {
       if (err.name !== 'AbortError') {
         setResumeActionError(err.message || 'Could not share this resume.');
@@ -228,12 +228,16 @@ export const CandidateDashboard = () => {
     }
   };
 
-  const handleEmailResume = (resume) => {
+  const handleEmailResume = (resume, provider = 'default') => {
     const subject = encodeURIComponent(`Resume: ${resume.original_filename}`);
     const body = encodeURIComponent(
       `Please find my resume attached: ${resume.original_filename}.\n\nDownload it from the Resume Vault and attach the file before sending.`
     );
     setResumeMenuId(null);
+    if (provider === 'gmail') {
+      window.open(`https://mail.google.com/mail/?view=cm&fs=1&su=${subject}&body=${body}`, '_blank', 'noopener,noreferrer');
+      return;
+    }
     window.location.href = `mailto:?subject=${subject}&body=${body}`;
   };
 
@@ -649,8 +653,11 @@ export const CandidateDashboard = () => {
                     <button type="button" role="menuitem" onClick={() => handleCopyResumeName(resume)} className="flex w-full items-center gap-2 rounded-md px-3 py-2 text-left text-xs text-slate-700 hover:bg-slate-50">
                       <Copy className="h-3.5 w-3.5" /> Copy file name
                     </button>
+                    <button type="button" role="menuitem" onClick={() => handleEmailResume(resume, 'gmail')} className="flex w-full items-center gap-2 rounded-md px-3 py-2 text-left text-xs text-slate-700 hover:bg-slate-50">
+                      <Mail className="h-3.5 w-3.5" /> Open Gmail draft
+                    </button>
                     <button type="button" role="menuitem" onClick={() => handleEmailResume(resume)} className="flex w-full items-center gap-2 rounded-md px-3 py-2 text-left text-xs text-slate-700 hover:bg-slate-50">
-                      <Mail className="h-3.5 w-3.5" /> Email draft
+                      <Mail className="h-3.5 w-3.5" /> Open default email app
                     </button>
                     <button
                       type="button"

@@ -6,19 +6,25 @@ if (!mime.getType && mime.lookup) {
 
 const request = require('supertest');
 const jwt = require('jsonwebtoken');
+const fs = require('fs');
+const os = require('os');
+const path = require('path');
 
 // Mock db module before loading app
 jest.mock('../../backend/src/config/db', () => ({
   query: jest.fn(),
   testConnection: jest.fn().mockResolvedValue({ ok: true, message: 'Mocked connection' }),
   pool: {
-    end: jest.fn().mockResolvedValue()
+    end: jest.fn().mockResolvedValue(),
+    getConnection: jest.fn()
   }
 }));
 
 const db = require('../../backend/src/config/db');
 const app = require('../../backend/src/app');
 const config = require('../../backend/src/config/env');
+const applicationService = require('../../backend/src/services/applicationService');
+const candidateService = require('../../backend/src/services/candidateService');
 
 describe('ATS Backend Security, RBAC & Pipeline Test Suite', () => {
   let adminToken;
@@ -245,6 +251,131 @@ describe('ATS Backend Security, RBAC & Pipeline Test Suite', () => {
 
       expect(offers.acceptanceRate).toBe(0.0);
       expect(notifications.deliveryRate).toBe(100.0);
+    });
+  });
+
+  describe('4. Candidate Application Deletion Window', () => {
+    let connection;
+
+    beforeEach(() => {
+      connection = {
+        beginTransaction: jest.fn().mockResolvedValue(),
+        query: jest.fn(),
+        commit: jest.fn().mockResolvedValue(),
+        rollback: jest.fn().mockResolvedValue(),
+        release: jest.fn()
+      };
+      db.pool.getConnection.mockResolvedValue(connection);
+    });
+
+    test('deletes an owned, unreviewed application inside the 24-hour window', async () => {
+      connection.query
+        .mockResolvedValueOnce([[{ id: 41, current_stage: 'APPLIED', within_window: 1 }]])
+        .mockResolvedValueOnce([[{ has_interviews: 0, has_offers: 0 }]])
+        .mockResolvedValueOnce([{ affectedRows: 1 }]);
+
+      await expect(applicationService.deleteMyApplication(7, 41)).resolves.toEqual({ id: 41 });
+
+      expect(connection.query).toHaveBeenNthCalledWith(1, expect.stringContaining('candidate_id = ?'), [41, 7]);
+      expect(connection.query).toHaveBeenNthCalledWith(3, expect.stringContaining('DELETE FROM applications'), [41, 7]);
+      expect(connection.commit).toHaveBeenCalledTimes(1);
+      expect(connection.rollback).not.toHaveBeenCalled();
+      expect(connection.release).toHaveBeenCalledTimes(1);
+    });
+
+    test('rejects deletion after 24 hours', async () => {
+      connection.query.mockResolvedValueOnce([[
+        { id: 41, current_stage: 'APPLIED', within_window: 0 }
+      ]]);
+
+      await expect(applicationService.deleteMyApplication(7, 41)).rejects.toMatchObject({ statusCode: 403 });
+      expect(connection.query).toHaveBeenCalledTimes(1);
+      expect(connection.commit).not.toHaveBeenCalled();
+      expect(connection.rollback).toHaveBeenCalledTimes(1);
+    });
+
+    test('does not allow deleting another candidate’s application', async () => {
+      connection.query.mockResolvedValueOnce([[]]);
+
+      await expect(applicationService.deleteMyApplication(7, 41)).rejects.toMatchObject({ statusCode: 404 });
+      expect(connection.query).toHaveBeenCalledTimes(1);
+      expect(connection.commit).not.toHaveBeenCalled();
+      expect(connection.rollback).toHaveBeenCalledTimes(1);
+    });
+
+    test('preserves applications that have moved beyond the initial stage', async () => {
+      connection.query.mockResolvedValueOnce([[
+        { id: 41, current_stage: 'SCREENING', within_window: 1 }
+      ]]);
+
+      await expect(applicationService.deleteMyApplication(7, 41)).rejects.toMatchObject({ statusCode: 409 });
+      expect(connection.query).toHaveBeenCalledTimes(1);
+      expect(connection.commit).not.toHaveBeenCalled();
+      expect(connection.rollback).toHaveBeenCalledTimes(1);
+    });
+  });
+
+  describe('5. Candidate Resume Deletion', () => {
+    let connection;
+    let uploadDirectory;
+    const originalUploadDirectory = config.UPLOAD_DIR;
+
+    beforeEach(async () => {
+      uploadDirectory = await fs.promises.mkdtemp(path.join(os.tmpdir(), 'ats-resume-delete-'));
+      config.UPLOAD_DIR = uploadDirectory;
+      connection = {
+        beginTransaction: jest.fn().mockResolvedValue(),
+        query: jest.fn(),
+        commit: jest.fn().mockResolvedValue(),
+        rollback: jest.fn().mockResolvedValue(),
+        release: jest.fn()
+      };
+      db.pool.getConnection.mockResolvedValue(connection);
+    });
+
+    afterEach(async () => {
+      config.UPLOAD_DIR = originalUploadDirectory;
+      await fs.promises.rm(uploadDirectory, { recursive: true, force: true });
+    });
+
+    test('deletes only the requesting candidate’s resume file and record', async () => {
+      const filePath = path.join(uploadDirectory, 'resume-52.pdf');
+      await fs.promises.writeFile(filePath, 'test resume');
+      connection.query
+        .mockResolvedValueOnce([[{ id: 52, file_path: filePath }]])
+        .mockResolvedValueOnce([{ affectedRows: 1 }]);
+
+      await expect(candidateService.deleteResume(7, 52)).resolves.toEqual({ id: 52 });
+
+      expect(connection.query).toHaveBeenNthCalledWith(1, expect.stringContaining('candidate_id = ?'), [52, 7]);
+      expect(connection.query).toHaveBeenNthCalledWith(2, expect.stringContaining('DELETE FROM resumes'), [52, 7]);
+      await expect(fs.promises.access(filePath)).rejects.toMatchObject({ code: 'ENOENT' });
+      expect(connection.commit).toHaveBeenCalledTimes(1);
+      expect(connection.release).toHaveBeenCalledTimes(1);
+    });
+
+    test('restores the resume file if deleting its database record fails', async () => {
+      const filePath = path.join(uploadDirectory, 'resume-52.pdf');
+      await fs.promises.writeFile(filePath, 'test resume');
+      connection.query
+        .mockResolvedValueOnce([[{ id: 52, file_path: filePath }]])
+        .mockRejectedValueOnce(new Error('Database delete failed'));
+
+      await expect(candidateService.deleteResume(7, 52)).rejects.toThrow('Database delete failed');
+
+      await expect(fs.promises.readFile(filePath, 'utf8')).resolves.toBe('test resume');
+      expect(connection.rollback).toHaveBeenCalledTimes(1);
+      expect(connection.commit).not.toHaveBeenCalled();
+    });
+
+    test('does not delete a resume owned by someone else', async () => {
+      connection.query.mockResolvedValueOnce([[]]);
+
+      await expect(candidateService.deleteResume(7, 52)).rejects.toMatchObject({ statusCode: 404 });
+
+      expect(connection.query).toHaveBeenCalledTimes(1);
+      expect(connection.commit).not.toHaveBeenCalled();
+      expect(connection.rollback).toHaveBeenCalledTimes(1);
     });
   });
 });
