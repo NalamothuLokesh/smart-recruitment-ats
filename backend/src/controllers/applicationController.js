@@ -48,7 +48,28 @@ class ApplicationController {
       next(error);
     }
   }
+    async getApplicationById(req, res, next) {
+    try {
+      const { id } = req.params;
 
+      const application = await applicationService.getApplicationById(id);
+
+      if (!application) {
+        return res.status(404).json({
+          success: false,
+          message: 'Application not found.'
+        });
+      }
+
+      res.status(200).json({
+        success: true,
+        data: application
+      });
+    } catch (error) {
+      next(error);
+    }
+  }
+  
   async transitionStage(req, res, next) {
     try {
       const { id } = req.params;

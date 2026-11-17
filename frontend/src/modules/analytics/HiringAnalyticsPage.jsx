@@ -29,6 +29,12 @@ import {
  * - jobsApi.listJobs()
  * ============================================================================
  */
+const getFunnelWidth = (stageCount, appliedCount) => {
+  if (!appliedCount) return '0%';
+
+  return `${Math.min(100, (stageCount / appliedCount) * 100)}%`;
+};
+
 export const HiringAnalyticsPage = () => {
   const [analytics, setAnalytics] = useState(null);
   const [jobs, setJobs] = useState([]);
@@ -38,6 +44,10 @@ export const HiringAnalyticsPage = () => {
   const [loading, setLoading] = useState(true);
 
   const loadAnalytics = async () => {
+    if (startDate && endDate && endDate < startDate) {
+  alert('End date cannot be earlier than start date.');
+  return;
+}
     try {
       setLoading(true);
       const [analyticsRes, jobsRes] = await Promise.all([
@@ -95,6 +105,7 @@ export const HiringAnalyticsPage = () => {
           <input
             type="date"
             value={endDate}
+            min={startDate}
             onChange={(e) => setEndDate(e.target.value)}
             className="px-2 py-1.5 border border-slate-300 rounded-lg text-xs bg-white"
             placeholder="End date"
@@ -109,6 +120,11 @@ export const HiringAnalyticsPage = () => {
           </button>
         </div>
       </div>
+      {loading && (
+  <div className="bg-indigo-50 text-indigo-700 p-4 rounded-lg text-sm font-medium">
+    Loading recruitment analytics...
+  </div>
+)}    
 
       {/* KPI Cards Grid */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
@@ -136,7 +152,7 @@ export const HiringAnalyticsPage = () => {
           <div className="text-2xl font-extrabold text-slate-900">
             {analytics?.kpis?.averageTimeToHireDays ?? 0.0} <span className="text-sm font-normal text-slate-500">days</span>
           </div>
-          <div className="text-[11px] text-slate-400">From apply to offer acceptance</div>
+          <div className="text-[11px] text-slate-400">Average days from application to accepted offer</div>
         </div>
 
         {/* KPI 4: Offer Acceptance Rate */}
@@ -152,7 +168,9 @@ export const HiringAnalyticsPage = () => {
         <div className="bg-white p-5 rounded-xl border border-slate-200 shadow-2xs space-y-1">
           <div className="text-xs font-semibold uppercase tracking-wider text-slate-500">Email Delivery SLA</div>
           <div className="text-2xl font-extrabold text-slate-900">
-            {analytics?.kpis?.notificationDeliveryRate ?? 100.0}%
+            {analytics?.notifications?.total > 0
+  ? `${analytics.kpis.notificationDeliveryRate}%`
+  : 'N/A'}
           </div>
           <div className="text-[11px] text-slate-400">Transactional alert health</div>
         </div>
@@ -163,7 +181,7 @@ export const HiringAnalyticsPage = () => {
         <div>
           <h2 className="text-lg font-bold text-slate-900">Recruitment Funnel & Progression Efficiency</h2>
           <p className="text-xs text-slate-500">
-            Progression conversion percentages between adjacent recruitment stages (safe zero-division).
+            Bars show the percentage of total applicants reaching each stage. Conversion rates show progression between adjacent stages.
           </p>
         </div>
 
@@ -175,7 +193,7 @@ export const HiringAnalyticsPage = () => {
               <span className="text-slate-600">{analytics?.funnel?.counts?.applied || 0} candidates</span>
             </div>
             <div className="w-full bg-slate-100 h-3 rounded-full overflow-hidden">
-              <div className="bg-indigo-600 h-full rounded-full transition-all" style={{ width: '100%' }} />
+              <div className="bg-indigo-600 h-full rounded-full transition-all" style={{ width: getFunnelWidth(analytics?.funnel?.counts?.applied, analytics?.funnel?.counts?.applied) }} />
             </div>
           </div>
 
@@ -194,7 +212,7 @@ export const HiringAnalyticsPage = () => {
             <div className="w-full bg-slate-100 h-3 rounded-full overflow-hidden">
               <div 
                 className="bg-blue-500 h-full rounded-full transition-all" 
-                style={{ width: `${Math.min(100, analytics?.funnel?.conversionRates?.appliedToScreening || 0)}%` }} 
+                style={{ width: getFunnelWidth(analytics?.funnel?.counts?.screening, analytics?.funnel?.counts?.applied) }} 
               />
             </div>
           </div>
@@ -214,7 +232,7 @@ export const HiringAnalyticsPage = () => {
             <div className="w-full bg-slate-100 h-3 rounded-full overflow-hidden">
               <div 
                 className="bg-amber-500 h-full rounded-full transition-all" 
-                style={{ width: `${Math.min(100, (analytics?.funnel?.counts?.interview / (analytics?.funnel?.counts?.applied || 1)) * 100)}%` }} 
+               style={{ width: getFunnelWidth(analytics?.funnel?.counts?.interview, analytics?.funnel?.counts?.applied) }}
               />
             </div>
           </div>
@@ -234,7 +252,7 @@ export const HiringAnalyticsPage = () => {
             <div className="w-full bg-slate-100 h-3 rounded-full overflow-hidden">
               <div 
                 className="bg-purple-500 h-full rounded-full transition-all" 
-                style={{ width: `${Math.min(100, (analytics?.funnel?.counts?.selected / (analytics?.funnel?.counts?.applied || 1)) * 100)}%` }} 
+                style={{ width: getFunnelWidth(analytics?.funnel?.counts?.selected, analytics?.funnel?.counts?.applied) }}
               />
             </div>
           </div>
@@ -254,7 +272,7 @@ export const HiringAnalyticsPage = () => {
             <div className="w-full bg-slate-100 h-3 rounded-full overflow-hidden">
               <div 
                 className="bg-emerald-500 h-full rounded-full transition-all" 
-                style={{ width: `${Math.min(100, (analytics?.funnel?.counts?.offered / (analytics?.funnel?.counts?.applied || 1)) * 100)}%` }} 
+                style={{ width: getFunnelWidth(analytics?.funnel?.counts?.offered, analytics?.funnel?.counts?.applied) }}
               />
             </div>
           </div>

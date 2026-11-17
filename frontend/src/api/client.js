@@ -107,7 +107,8 @@ export const applicationsApi = {
   apply: (payload) => apiClient.post('/applications', payload),
   getMyApplications: () => apiClient.get('/applications/my'),
   listApplications: (params = {}) => apiClient.get('/applications', { params }),
-  transitionStage: (applicationId, { toStage, notes }) => 
+  getApplicationById: (applicationId) => apiClient.get(`/applications/${applicationId}`),
+  transitionStage: (applicationId, { toStage, notes }) =>
     apiClient.patch(`/applications/${applicationId}/stage`, { toStage, notes })
 };
 
