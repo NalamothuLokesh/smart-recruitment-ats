@@ -31,7 +31,10 @@ export const LoginPage = () => {
 
     try {
       const user = await login(email.trim(), password);
-      const redirectPath = location.state?.from?.pathname || (
+      const from = location.state?.from;
+      const redirectPath = from?.pathname
+        ? `${from.pathname}${from.search || ''}${from.hash || ''}`
+        : (
         user.role === 'ADMIN' ? '/admin' :
         user.role === 'HR' ? '/pipeline' : '/candidate'
       );
@@ -53,7 +56,15 @@ export const LoginPage = () => {
     <div className="auth-page">
       <div className="auth-bg-glow" />
 
-      <div className="auth-card animate-fadeIn">
+      <div className="auth-layout">
+        <aside className="auth-intro">
+          <div className="auth-intro-mark"><Briefcase size={22} /></div>
+          <p className="auth-intro-kicker">SMART ATS WORKSPACE</p>
+          <h2>Keep your hiring journey moving.</h2>
+          <p>Sign in to manage recruitment workflows, review opportunities, and follow application progress.</p>
+        </aside>
+
+        <div className="auth-card animate-fadeIn">
         {/* Brand Emblem */}
         <div className="auth-brand">
           <div className="auth-brand-icon">
@@ -67,7 +78,7 @@ export const LoginPage = () => {
 
         {/* Error Alert */}
         {error && (
-          <div className="auth-error animate-fadeIn">
+          <div className="auth-error animate-fadeIn" role="alert" aria-live="assertive">
             <AlertCircle size={16} className="flex-shrink-0" />
             <span>{error}</span>
           </div>
@@ -76,7 +87,7 @@ export const LoginPage = () => {
         <form onSubmit={handleSubmit}>
           {/* Email */}
           <div className="auth-field">
-            <label className="auth-label">Email Address</label>
+            <label className="auth-label">Email Address <span className="auth-required">*</span></label>
             <div className="auth-inp-wrap">
               <Mail size={16} className="auth-inp-icon" />
               <input
@@ -84,7 +95,7 @@ export const LoginPage = () => {
                 type="email"
                 placeholder="name@company.com"
                 value={email}
-                onChange={(e) => setEmail(e.target.value)}
+                onChange={(e) => { setEmail(e.target.value); if (error) setError(""); }}
                 required
                 autoComplete="email"
                 autoFocus
@@ -94,7 +105,7 @@ export const LoginPage = () => {
 
           {/* Password */}
           <div className="auth-field">
-            <label className="auth-label">Password</label>
+            <label className="auth-label">Password <span className="auth-required">*</span></label>
             <div className="auth-inp-wrap">
               <Lock size={16} className="auth-inp-icon" />
               <input
@@ -102,7 +113,7 @@ export const LoginPage = () => {
                 type={showPassword ? 'text' : 'password'}
                 placeholder="Enter password"
                 value={password}
-                onChange={(e) => setPassword(e.target.value)}
+                onChange={(e) => { setPassword(e.target.value); if (error) setError(""); }}
                 required
                 autoComplete="current-password"
               />
@@ -110,7 +121,7 @@ export const LoginPage = () => {
                 type="button"
                 className="auth-pw-toggle"
                 onClick={() => setShowPassword((v) => !v)}
-                tabIndex={-1}
+                aria-pressed={showPassword}
                 aria-label={showPassword ? 'Hide password' : 'Show password'}
               >
                 {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
@@ -118,7 +129,7 @@ export const LoginPage = () => {
             </div>
           </div>
 
-          <button className="btn btn-primary auth-btn" type="submit" disabled={loading}>
+          <button className="btn btn-primary auth-btn" type="submit" disabled={loading} aria-busy={loading}>
             {loading ? (
               <>
                 <Loader2 size={16} className="spin" /> Authenticating...
@@ -165,8 +176,9 @@ export const LoginPage = () => {
         <div className="auth-footer-prompt">
           <span>New job seeker?</span>{' '}
           <Link to="/register" className="auth-link-highlight">
-            Create a Candidate Profile
+            Create a Candidate Profile <ArrowRight size={14} aria-hidden="true" />
           </Link>
+        </div>
         </div>
       </div>
     </div>

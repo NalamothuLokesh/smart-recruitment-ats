@@ -95,8 +95,8 @@ export const candidateApi = {
     link.setAttribute('download', filename);
     document.body.appendChild(link);
     link.click();
-    link.parentNode.removeChild(link);
-    window.URL.revokeObjectURL(url);
+    link.remove();
+    window.setTimeout(() => window.URL.revokeObjectURL(url), 1000);
   }
 };
 
