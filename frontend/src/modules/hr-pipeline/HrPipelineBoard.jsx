@@ -89,8 +89,8 @@ export const HrPipelineBoard = () => {
 
       const [appRes, jobRes] = await Promise.all([
         applicationsApi.listApplications({
-          jobId: selectedJobId,
-          search,
+          ...(selectedJobId ? { jobId: selectedJobId } : {}),
+          ...(search.trim() ? { search: search.trim() } : {}),
           limit: 100
         }),
         jobsApi.listJobs({ limit: 100 })

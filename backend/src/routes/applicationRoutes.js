@@ -60,8 +60,8 @@ router.get(
   [
     query('page').optional().isInt({ min: 1 }),
     query('limit').optional().isInt({ min: 1, max: 100 }),
-    query('jobId').optional().isInt(),
-    query('stage').optional().isIn(['APPLIED', 'SCREENING', 'INTERVIEW', 'SELECTED', 'OFFERED', 'REJECTED']),
+    query('jobId').optional({ checkFalsy: true }).isInt(),
+    query('stage').optional({ checkFalsy: true }).isIn(['APPLIED', 'SCREENING', 'INTERVIEW', 'SELECTED', 'OFFERED', 'REJECTED']),
     validate
   ],
   applicationController.listApplications
