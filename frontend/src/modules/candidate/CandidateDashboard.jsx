@@ -46,6 +46,9 @@ export const CandidateDashboard = () => {
   const { user } = useAuth();
   const location = useLocation();
   const [applications, setApplications] = useState([]);
+  const [applicationToDelete, setApplicationToDelete] = useState(null);
+  const [deletingApplicationId, setDeletingApplicationId] = useState(null);
+  const [applicationDeleteError, setApplicationDeleteError] = useState('');
   const [profile, setProfile] = useState(null);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState('');
@@ -250,6 +253,22 @@ export const CandidateDashboard = () => {
     }
   };
 
+  const handleDeleteApplication = async () => {
+    if (!applicationToDelete || deletingApplicationId !== null) return;
+    setDeletingApplicationId(applicationToDelete.id);
+    setApplicationDeleteError('');
+    try {
+      await applicationsApi.deleteMyApplication(applicationToDelete.id);
+      setFeedback(`Application for ${applicationToDelete.job_title} deleted.`);
+      setApplicationToDelete(null);
+      await loadData();
+    } catch (err) {
+      setApplicationDeleteError(err.message || 'Could not delete this application.');
+    } finally {
+      setDeletingApplicationId(null);
+    }
+  };
+
   if (loading && !profile) {
     return (
       <div className="min-h-[60vh] flex flex-col items-center justify-center gap-3 text-slate-500">
@@ -421,14 +440,26 @@ export const CandidateDashboard = () => {
                     </div>
                   </div>
 
-                  <span className={`self-start text-xs font-bold px-3 py-1 rounded-full ${
+                  <div className="flex flex-wrap items-center gap-2 self-start">
+                    {Number(app.can_withdraw) === 1 && (
+                      <button
+                        type="button"
+                        onClick={() => { setApplicationDeleteError(''); setApplicationToDelete(app); }}
+                        className="inline-flex items-center gap-1 rounded-lg border border-rose-200 bg-white px-2.5 py-1.5 text-[11px] font-semibold text-rose-700 hover:bg-rose-50"
+                        aria-label={`Delete application for ${app.job_title}`}
+                      >
+                        <Trash2 className="h-3.5 w-3.5" /> Delete application
+                      </button>
+                    )}
+                    <span className={`text-xs font-bold px-3 py-1 rounded-full ${
                     app.current_stage === 'OFFERED' ? 'bg-emerald-100 text-emerald-800' :
                     app.current_stage === 'INTERVIEW' ? 'bg-amber-100 text-amber-800' :
                     app.current_stage === 'REJECTED' ? 'bg-rose-100 text-rose-800' :
                     'bg-indigo-100 text-indigo-800'
                   }`}>
                     STAGE: {app.current_stage}
-                  </span>
+                    </span>
+                  </div>
                 </div>
 
                 {/* Offer Action Banner if OFFERED */}
@@ -673,6 +704,39 @@ export const CandidateDashboard = () => {
                 className="rounded-lg bg-rose-600 px-4 py-2 text-xs font-semibold text-white hover:bg-rose-700 disabled:cursor-wait disabled:opacity-60"
               >
                 {deletingResumeId !== null ? 'Deleting...' : 'Delete resume'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+      {applicationToDelete && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 p-4" role="presentation">
+          <div role="dialog" aria-modal="true" aria-labelledby="delete-application-title" className="w-full max-w-md rounded-2xl border border-slate-200 bg-white p-6 shadow-xl">
+            <h3 id="delete-application-title" className="text-lg font-bold text-slate-900">Delete this application?</h3>
+            <p className="mt-2 text-sm text-slate-600">
+              Your application for <strong>{applicationToDelete.job_title}</strong> will be removed. You can do this only within 24 hours of applying, before the application has been reviewed or has hiring activity.
+            </p>
+            {applicationDeleteError && (
+              <p role="alert" className="mt-4 rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-sm text-rose-700">
+                {applicationDeleteError}
+              </p>
+            )}
+            <div className="mt-6 flex justify-end gap-2">
+              <button
+                type="button"
+                onClick={() => { setApplicationToDelete(null); setApplicationDeleteError(''); }}
+                disabled={deletingApplicationId !== null}
+                className="rounded-lg border border-slate-300 px-4 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50 disabled:opacity-60"
+              >
+                Keep application
+              </button>
+              <button
+                type="button"
+                onClick={handleDeleteApplication}
+                disabled={deletingApplicationId !== null}
+                className="rounded-lg bg-rose-600 px-4 py-2 text-xs font-semibold text-white hover:bg-rose-700 disabled:cursor-wait disabled:opacity-60"
+              >
+                {deletingApplicationId !== null ? 'Deleting...' : 'Delete application'}
               </button>
             </div>
           </div>

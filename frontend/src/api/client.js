@@ -111,6 +111,7 @@ export const candidateApi = {
 export const applicationsApi = {
   apply: (payload) => apiClient.post('/applications', payload),
   getMyApplications: () => apiClient.get('/applications/my'),
+  deleteMyApplication: (applicationId) => apiClient.delete(`/applications/${applicationId}`),
   listApplications: (params = {}) => apiClient.get('/applications', { params }),
   transitionStage: (applicationId, { toStage, notes }) => 
     apiClient.patch(`/applications/${applicationId}/stage`, { toStage, notes })
