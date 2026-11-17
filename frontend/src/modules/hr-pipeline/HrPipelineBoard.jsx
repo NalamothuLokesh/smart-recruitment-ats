@@ -179,7 +179,7 @@ export const HrPipelineBoard = () => {
   };
 
   return (
-    <div className="flex flex-col h-full max-w-[1750px] w-full mx-auto px-4 sm:px-6 lg:px-8 py-5 min-h-0">
+    <div className="max-w-[1750px] w-full mx-auto px-4 sm:px-6 lg:px-8 py-6">
       {/* Page Header & Filter Controls Bar */}
       <div className="flex flex-col md:flex-row md:items-center md:justify-between pb-5 border-b border-slate-200 dark:border-slate-800 gap-4 flex-shrink-0">
         <div className="min-w-0">
@@ -252,8 +252,8 @@ export const HrPipelineBoard = () => {
       )}
 
       {/* Dedicated Horizontal Scroll Container for Kanban Board */}
-      <div className="flex-1 min-h-0 mt-4 overflow-x-auto overflow-y-hidden pb-4 overscroll-contain custom-scrollbar">
-        <div className="flex gap-4 min-w-max h-full items-stretch">
+      <div className="mt-6 overflow-x-auto pb-6 overscroll-contain custom-scrollbar">
+        <div className="flex gap-4 min-w-max items-start">
           {PIPELINE_STAGES.map((stage) => {
             const stageApps = applications.filter(
               (a) => a.current_stage === stage.id
@@ -262,7 +262,7 @@ export const HrPipelineBoard = () => {
             return (
               <div
                 key={stage.id}
-                className="w-[310px] min-w-[310px] bg-slate-100/70 dark:bg-[#161b22] rounded-2xl p-3.5 border border-slate-200 dark:border-[#30363d] flex flex-col h-full shadow-2xs"
+                className="w-[310px] min-w-[310px] bg-slate-100/70 dark:bg-[#161b22] rounded-2xl p-3.5 border border-slate-200 dark:border-[#30363d] flex flex-col min-h-[620px] shadow-2xs"
               >
                 {/* Column Header */}
                 <div className="flex items-center justify-between pb-3 mb-3 border-b border-slate-200 dark:border-[#30363d] flex-shrink-0">
@@ -278,7 +278,7 @@ export const HrPipelineBoard = () => {
                 </div>
 
                 {/* Candidate Cards List - Isolated Vertical Scroll */}
-                <div className="space-y-3 flex-1 min-h-0 overflow-y-auto overscroll-contain pr-1 custom-scrollbar">
+                <div className="space-y-3 flex-1 overflow-y-auto overscroll-contain pr-1 custom-scrollbar max-h-[580px]">
                   {stageApps.map((app) => (
                     <div
                       key={app.id}
