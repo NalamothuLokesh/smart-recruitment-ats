@@ -1036,6 +1036,11 @@
   padding: 12px 0;
   font-family: inherit;
 }
+.auth-inp:focus,
+.auth-inp:focus-visible {
+  outline: none !important;
+  box-shadow: none !important;
+}
 .auth-inp::placeholder {
   color: var(--muted-foreground);
 }

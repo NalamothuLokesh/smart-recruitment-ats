@@ -167,6 +167,16 @@ button:disabled,
   outline: none;
 }
 
+/* Prevent double borders and duplicate outlines on all form inputs app-wide */
+input:focus,
+input:focus-visible,
+textarea:focus,
+textarea:focus-visible,
+select:focus,
+select:focus-visible {
+  outline: none !important;
+}
+
 /* ── Themed Scrollbar ────────────────────────────────────────────── */
 * {
   scrollbar-width: thin;
