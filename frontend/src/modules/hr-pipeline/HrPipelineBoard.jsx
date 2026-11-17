@@ -1,22 +1,49 @@
-
 import React, { useState, useEffect } from 'react';
 import { applicationsApi, candidateApi, jobsApi } from '../../api/client';
 import {
   Kanban,
   Search,
+  ArrowRight,
   FileText,
   Download,
+  CheckCircle2,
   XCircle,
-  Clock
+  Calendar,
+  Clock,
+  X
 } from 'lucide-react';
 
 const PIPELINE_STAGES = [
-  { id: 'APPLIED', label: 'Applied', color: 'border-slate-300 bg-slate-50 text-slate-700' },
-  { id: 'SCREENING', label: 'Screening', color: 'border-blue-300 bg-blue-50 text-blue-700' },
-  { id: 'INTERVIEW', label: 'Interview', color: 'border-amber-300 bg-amber-50 text-amber-700' },
-  { id: 'SELECTED', label: 'Selected', color: 'border-purple-300 bg-purple-50 text-purple-700' },
-  { id: 'OFFERED', label: 'Offered', color: 'border-emerald-300 bg-emerald-50 text-emerald-700' },
-  { id: 'REJECTED', label: 'Rejected', color: 'border-rose-300 bg-rose-50 text-rose-700' }
+  {
+    id: 'APPLIED',
+    label: 'Applied',
+    color: 'border-slate-300 dark:border-slate-700 bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300'
+  },
+  {
+    id: 'SCREENING',
+    label: 'Screening',
+    color: 'border-blue-200 dark:border-blue-800 bg-blue-50 dark:bg-blue-950/60 text-blue-700 dark:text-blue-300'
+  },
+  {
+    id: 'INTERVIEW',
+    label: 'Interview',
+    color: 'border-amber-200 dark:border-amber-800 bg-amber-50 dark:bg-amber-950/60 text-amber-700 dark:text-amber-300'
+  },
+  {
+    id: 'SELECTED',
+    label: 'Selected',
+    color: 'border-purple-200 dark:border-purple-800 bg-purple-50 dark:bg-purple-950/60 text-purple-700 dark:text-purple-300'
+  },
+  {
+    id: 'OFFERED',
+    label: 'Offered',
+    color: 'border-emerald-200 dark:border-emerald-800 bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300'
+  },
+  {
+    id: 'REJECTED',
+    label: 'Rejected',
+    color: 'border-rose-200 dark:border-rose-800 bg-rose-50 dark:bg-rose-950/60 text-rose-700 dark:text-rose-300'
+  }
 ];
 
 export const HrPipelineBoard = () => {
@@ -25,7 +52,6 @@ export const HrPipelineBoard = () => {
   const [selectedJobId, setSelectedJobId] = useState('');
   const [search, setSearch] = useState('');
   const [loading, setLoading] = useState(true);
-
   const [activeCandidate, setActiveCandidate] = useState(null);
 
   // Activity History State
@@ -40,15 +66,31 @@ export const HrPipelineBoard = () => {
   const [transitionNotes, setTransitionNotes] = useState('');
   const [feedback, setFeedback] = useState('');
 
-  // Load pipeline and jobs
+  // Scroll Lock for overlays (Modals, Dialogs, Drawers)
+  const isOverlayOpen = Boolean(activeCandidate || transitioningApp || showActivityDrawer);
+
+  useEffect(() => {
+    if (isOverlayOpen) {
+      const originalBodyOverflow = document.body.style.overflow;
+      const originalHtmlOverflow = document.documentElement.style.overflow;
+      document.body.style.overflow = 'hidden';
+      document.documentElement.style.overflow = 'hidden';
+
+      return () => {
+        document.body.style.overflow = originalBodyOverflow;
+        document.documentElement.style.overflow = originalHtmlOverflow;
+      };
+    }
+  }, [isOverlayOpen]);
+
   const loadPipeline = async () => {
     try {
       setLoading(true);
 
       const [appRes, jobRes] = await Promise.all([
         applicationsApi.listApplications({
-          ...(selectedJobId ? { jobId: selectedJobId } : {}),
-          ...(search.trim() ? { search: search.trim() } : {}),
+          jobId: selectedJobId,
+          search,
           limit: 100
         }),
         jobsApi.listJobs({ limit: 100 })
@@ -67,7 +109,7 @@ export const HrPipelineBoard = () => {
     loadPipeline();
   }, [selectedJobId]);
 
-  // Fetch actual candidate activity history
+  // Fetch candidate activity history
   const handleOpenActivityHistory = async () => {
     if (!activeCandidate?.id) return;
 
@@ -80,11 +122,9 @@ export const HrPipelineBoard = () => {
       const response = await applicationsApi.getApplicationById(
         activeCandidate.id
       );
-
       setActivityData(response.data);
     } catch (err) {
       console.error('Failed to load activity history:', err);
-
       setActivityError(
         err.response?.data?.message ||
         err.message ||
@@ -139,45 +179,45 @@ export const HrPipelineBoard = () => {
   };
 
   return (
-    <div className="max-w-[1700px] mx-auto px-4 sm:px-6 lg:px-8 py-8">
-
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between pb-6 border-b border-slate-200 gap-4">
-        <div>
-          <div className="flex items-center gap-2">
-            <Kanban className="w-6 h-6 text-indigo-600" />
-            <h1 className="text-2xl font-bold text-slate-900 tracking-tight">
-              Applicant Tracking Pipeline
-            </h1>
+    <div className="flex flex-col h-full max-w-[1750px] w-full mx-auto px-4 sm:px-6 lg:px-8 py-5 min-h-0">
+      {/* Page Header & Filter Controls Bar */}
+      <div className="flex flex-col md:flex-row md:items-center md:justify-between pb-5 border-b border-slate-200 dark:border-slate-800 gap-4 flex-shrink-0">
+        <div className="min-w-0">
+          <div className="flex items-center gap-3">
+            <div className="p-2.5 rounded-xl bg-indigo-50 dark:bg-indigo-950/50 text-indigo-600 dark:text-indigo-400 border border-indigo-200/60 dark:border-indigo-800/60 flex-shrink-0">
+              <Kanban className="w-5 h-5" />
+            </div>
+            <div className="min-w-0">
+              <h1 className="text-xl sm:text-2xl font-bold text-slate-900 dark:text-white tracking-tight truncate">
+                Applicant Tracking Pipeline
+              </h1>
+              <p className="text-xs sm:text-sm text-slate-500 dark:text-slate-400 mt-0.5 truncate">
+                Manage stage progression, review resumes, and audit recruitment state machine transitions.
+              </p>
+            </div>
           </div>
-
-          <p className="text-sm text-slate-500 mt-1">
-            Manage stage progression, review resumes, and audit recruitment state machine transitions.
-          </p>
         </div>
 
-        {/* Filter Controls */}
-        <div className="flex flex-wrap items-center gap-3">
+        {/* Filter Controls Row */}
+        <div className="flex items-center gap-3 flex-shrink-0">
           <div className="relative w-64">
-            <Search className="w-4 h-4 text-slate-400 absolute left-3 top-2.5" />
-
+            <Search className="w-4 h-4 text-slate-400 absolute left-3 top-2.5 pointer-events-none" />
             <input
               type="text"
               placeholder="Search candidate name..."
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               onKeyDown={(e) => e.key === 'Enter' && loadPipeline()}
-              className="w-full pl-9 pr-3 py-1.5 border border-slate-300 rounded-lg text-sm bg-white outline-none focus:ring-2 focus:ring-indigo-500"
+              className="w-full pl-9 pr-3 py-1.5 border border-slate-300 dark:border-slate-700 rounded-lg text-xs sm:text-sm bg-white dark:bg-[#161b22] text-slate-900 dark:text-white placeholder-slate-400 outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all"
             />
           </div>
 
           <select
             value={selectedJobId}
             onChange={(e) => setSelectedJobId(e.target.value)}
-            className="px-3 py-1.5 border border-slate-300 rounded-lg text-sm bg-white"
+            className="px-3 py-1.5 border border-slate-300 dark:border-slate-700 rounded-lg text-xs sm:text-sm bg-white dark:bg-[#161b22] text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-indigo-500 cursor-pointer"
           >
             <option value="">All Requisitions</option>
-
             {jobs.map((j) => (
               <option key={j.id} value={j.id}>
                 {j.title} ({j.department})
@@ -187,14 +227,16 @@ export const HrPipelineBoard = () => {
         </div>
       </div>
 
-      {/* Feedback Message */}
+      {/* Feedback Toast */}
       {feedback && (
-        <div className="my-4 p-3 bg-emerald-50 border border-emerald-200 text-emerald-800 text-sm rounded-lg flex justify-between items-center">
-          <span>{feedback}</span>
-
+        <div className="my-3 p-3 bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800 text-emerald-800 dark:text-emerald-300 text-xs sm:text-sm rounded-xl flex justify-between items-center flex-shrink-0">
+          <div className="flex items-center gap-2">
+            <CheckCircle2 className="w-4 h-4 text-emerald-600 dark:text-emerald-400 flex-shrink-0" />
+            <span>{feedback}</span>
+          </div>
           <button
             onClick={() => setFeedback('')}
-            className="text-xs font-semibold hover:underline"
+            className="text-xs font-semibold hover:underline ml-4 text-emerald-700 dark:text-emerald-300"
           >
             Dismiss
           </button>
@@ -203,307 +245,337 @@ export const HrPipelineBoard = () => {
 
       {/* Loading Indicator */}
       {loading && (
-        <div className="mt-5 text-sm text-indigo-600">
+        <div className="mt-3 text-xs font-medium text-indigo-600 dark:text-indigo-400 flex items-center gap-2 flex-shrink-0">
+          <div className="w-2 h-2 rounded-full bg-indigo-600 animate-pulse" />
           Loading recruitment pipeline...
         </div>
       )}
 
-      {/* Kanban Board */}
-      <div className="mt-6 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4">
-        {PIPELINE_STAGES.map((stage) => {
-          const stageApps = applications.filter(
-            (a) => a.current_stage === stage.id
-          );
+      {/* Dedicated Horizontal Scroll Container for Kanban Board */}
+      <div className="flex-1 min-h-0 mt-4 overflow-x-auto overflow-y-hidden pb-4 overscroll-contain custom-scrollbar">
+        <div className="flex gap-4 min-w-max h-full items-stretch">
+          {PIPELINE_STAGES.map((stage) => {
+            const stageApps = applications.filter(
+              (a) => a.current_stage === stage.id
+            );
 
-          return (
-            <div
-              key={stage.id}
-              className="bg-slate-100 rounded-xl p-3 border border-slate-200 flex flex-col min-h-[600px]"
-            >
-              {/* Column Header */}
-              <div className="flex items-center justify-between pb-3 mb-2 border-b border-slate-200">
-                <span
-                  className={`text-xs font-bold uppercase tracking-wider px-2 py-0.5 rounded ${stage.color}`}
-                >
-                  {stage.label}
-                </span>
-
-                <span className="text-xs font-bold text-slate-500 bg-white px-2 py-0.5 rounded-full border border-slate-200 shadow-2xs">
-                  {stageApps.length}
-                </span>
-              </div>
-
-              {/* Candidate Cards */}
-              <div className="space-y-3 flex-1 overflow-y-auto">
-                {stageApps.map((app) => (
-                  <div
-                    key={app.id}
-                    onClick={() => setActiveCandidate(app)}
-                    className="p-3.5 bg-white rounded-lg border border-slate-200 shadow-2xs hover:shadow-sm hover:border-indigo-400 transition-all cursor-pointer space-y-2.5"
-                  >
-                    <div>
-                      <h4 className="text-sm font-bold text-slate-900 hover:text-indigo-600">
-                        {app.candidate_name}
-                      </h4>
-
-                      <p className="text-[11px] text-slate-500 truncate">
-                        {app.job_title}
-                      </p>
-                    </div>
-
-                    <div className="flex items-center gap-1.5 text-[11px] text-slate-600">
-                      <Clock className="w-3 h-3 text-slate-400" />
-                      <span>{app.experience_years || 0} yrs exp</span>
-                    </div>
-
-                    {/* Skills */}
-                    {app.skills?.length > 0 && (
-                      <div className="flex flex-wrap gap-1">
-                        {app.skills.slice(0, 3).map((s, idx) => (
-                          <span
-                            key={idx}
-                            className="px-1.5 py-0.2 bg-slate-100 text-slate-600 text-[10px] rounded font-medium"
-                          >
-                            {s}
-                          </span>
-                        ))}
-                      </div>
-                    )}
-
-                    {/* Card Actions */}
-                    <div className="pt-2 border-t border-slate-100 flex items-center justify-between text-xs">
-                      {app.resume_id && (
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            handleDownloadResume(
-                              app.resume_id,
-                              app.resume_filename
-                            );
-                          }}
-                          title="Download Resume"
-                          className="p-1 text-indigo-600 hover:bg-indigo-50 rounded"
-                        >
-                          <FileText className="w-3.5 h-3.5" />
-                        </button>
-                      )}
-
-                      <div className="flex items-center gap-1 ml-auto">
-                        {stage.id !== 'REJECTED' && (
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              handleOpenTransition(app, 'REJECTED');
-                            }}
-                            title="Reject Candidate"
-                            className="p-1 text-slate-400 hover:text-rose-600 rounded"
-                          >
-                            <XCircle className="w-3.5 h-3.5" />
-                          </button>
-                        )}
-
-                        {stage.id === 'APPLIED' && (
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              handleOpenTransition(app, 'SCREENING');
-                            }}
-                            className="px-2 py-0.5 bg-blue-50 text-blue-700 hover:bg-blue-100 rounded text-[11px] font-semibold"
-                          >
-                            Screen →
-                          </button>
-                        )}
-
-                        {stage.id === 'SCREENING' && (
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              handleOpenTransition(app, 'INTERVIEW');
-                            }}
-                            className="px-2 py-0.5 bg-amber-50 text-amber-700 hover:bg-amber-100 rounded text-[11px] font-semibold"
-                          >
-                            Interview →
-                          </button>
-                        )}
-
-                        {stage.id === 'INTERVIEW' && (
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              handleOpenTransition(app, 'SELECTED');
-                            }}
-                            className="px-2 py-0.5 bg-purple-50 text-purple-700 hover:bg-purple-100 rounded text-[11px] font-semibold"
-                          >
-                            Select →
-                          </button>
-                        )}
-
-                        {stage.id === 'SELECTED' && (
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              handleOpenTransition(app, 'OFFERED');
-                            }}
-                            className="px-2 py-0.5 bg-emerald-50 text-emerald-700 hover:bg-emerald-100 rounded text-[11px] font-semibold"
-                          >
-                            Offer →
-                          </button>
-                        )}
-                      </div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          );
-        })}
-      </div>
-
-      {/* Candidate Details Modal */}
-      {activeCandidate && (
-        <div className="fixed inset-0 z-50 bg-slate-900/40 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="bg-white max-w-lg w-full p-6 rounded-2xl shadow-xl border border-slate-200 space-y-4">
-
-            <div className="flex justify-between items-start border-b border-slate-100 pb-3">
-              <div>
-                <h3 className="text-lg font-bold text-slate-900">
-                  {activeCandidate.candidate_name}
-                </h3>
-
-                <p className="text-xs text-slate-500">
-                  {activeCandidate.candidate_email} • {activeCandidate.candidate_phone || 'No phone'}
-                </p>
-              </div>
-
-              <button
-                onClick={() => setActiveCandidate(null)}
-                className="text-slate-400 hover:text-slate-600"
+            return (
+              <div
+                key={stage.id}
+                className="w-[310px] min-w-[310px] bg-slate-100/70 dark:bg-[#161b22] rounded-2xl p-3.5 border border-slate-200 dark:border-[#30363d] flex flex-col h-full shadow-2xs"
               >
-                ✕
-              </button>
-            </div>
+                {/* Column Header */}
+                <div className="flex items-center justify-between pb-3 mb-3 border-b border-slate-200 dark:border-[#30363d] flex-shrink-0">
+                  <span
+                    className={`text-[11px] font-bold uppercase tracking-wider px-2 py-0.5 rounded border ${stage.color}`}
+                  >
+                    {stage.label}
+                  </span>
 
-            <div className="space-y-3 text-xs text-slate-700">
-              <div className="grid grid-cols-2 gap-2 bg-slate-50 p-3 rounded-xl border border-slate-100">
-
-                <div>
-                  <span className="text-slate-400 block">Applied Position</span>
-                  <span className="font-semibold text-slate-800">
-                    {activeCandidate.job_title}
+                  <span className="text-xs font-bold tabular-nums text-slate-500 dark:text-slate-400 bg-white dark:bg-[#1c2128] px-2.5 py-0.5 rounded-full border border-slate-200 dark:border-slate-700 shadow-2xs">
+                    {stageApps.length}
                   </span>
                 </div>
 
-                <div>
-                  <span className="text-slate-400 block">Current Stage</span>
-                  <span className="font-semibold text-indigo-600">
-                    {activeCandidate.current_stage}
-                  </span>
-                </div>
-
-                <div>
-                  <span className="text-slate-400 block">Experience</span>
-                  <span className="font-semibold text-slate-800">
-                    {activeCandidate.experience_years} years
-                  </span>
-                </div>
-
-                <div>
-                  <span className="text-slate-400 block">Applied Date</span>
-                  <span className="font-semibold text-slate-800">
-                    {new Date(activeCandidate.applied_at).toLocaleDateString()}
-                  </span>
-                </div>
-              </div>
-
-              {/* Skills */}
-              <div>
-                <span className="font-semibold text-slate-900 block mb-1">
-                  Declared Competencies:
-                </span>
-
-                <div className="flex flex-wrap gap-1">
-                  {activeCandidate.skills?.map((s, idx) => (
-                    <span
-                      key={idx}
-                      className="px-2 py-0.5 bg-indigo-50 text-indigo-700 rounded-md font-medium"
+                {/* Candidate Cards List - Isolated Vertical Scroll */}
+                <div className="space-y-3 flex-1 min-h-0 overflow-y-auto overscroll-contain pr-1 custom-scrollbar">
+                  {stageApps.map((app) => (
+                    <div
+                      key={app.id}
+                      onClick={() => setActiveCandidate(app)}
+                      className="p-4 bg-white dark:bg-[#1c2128] rounded-xl border border-slate-200 dark:border-[#30363d] shadow-2xs hover:shadow-md hover:border-indigo-400 dark:hover:border-indigo-500 transition-all cursor-pointer flex flex-col justify-between gap-3 min-h-[160px] group"
                     >
-                      {s}
-                    </span>
+                      <div>
+                        <div className="flex items-start justify-between gap-2">
+                          <h4 className="text-sm font-semibold text-slate-900 dark:text-white group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors truncate">
+                            {app.candidate_name}
+                          </h4>
+                        </div>
+
+                        <p className="text-xs text-slate-500 dark:text-slate-400 truncate mt-0.5">
+                          {app.job_title}
+                        </p>
+
+                        <div className="flex items-center gap-1.5 mt-2.5 text-xs text-slate-600 dark:text-slate-300">
+                          <Clock className="w-3.5 h-3.5 text-slate-400 flex-shrink-0" />
+                          <span className="tabular-nums font-medium">
+                            {app.experience_years != null ? app.experience_years : '0'} yrs exp
+                          </span>
+                        </div>
+
+                        {app.skills && app.skills.length > 0 && (
+                          <div className="flex flex-wrap gap-1.5 mt-2.5">
+                            {app.skills.slice(0, 3).map((skill, sIdx) => (
+                              <span
+                                key={sIdx}
+                                className="px-2 py-0.5 text-[10px] font-medium rounded-md bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 border border-slate-200/60 dark:border-slate-700/60 truncate max-w-[120px]"
+                              >
+                                {skill}
+                              </span>
+                            ))}
+                            {app.skills.length > 3 && (
+                              <span className="px-1.5 py-0.5 text-[10px] font-medium text-slate-400">
+                                +{app.skills.length - 3}
+                              </span>
+                            )}
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Card Actions Bottom Row */}
+                      <div className="pt-2.5 border-t border-slate-100 dark:border-slate-800/80 flex items-center justify-between gap-2 mt-auto">
+                        <div className="flex items-center gap-1">
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setActiveCandidate(app);
+                            }}
+                            title="View Candidate Details"
+                            className="p-1 rounded-md text-slate-400 hover:text-indigo-600 dark:hover:text-indigo-400 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+                          >
+                            <FileText className="w-3.5 h-3.5" />
+                          </button>
+
+                          {stage.id !== 'REJECTED' && (
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleOpenTransition(app, 'REJECTED');
+                              }}
+                              title="Reject Candidate"
+                              className="p-1 rounded-md text-slate-400 hover:text-rose-600 dark:hover:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/40 transition-colors"
+                            >
+                              <XCircle className="w-3.5 h-3.5" />
+                            </button>
+                          )}
+                        </div>
+
+                        {/* Stage Advance Buttons with consistent height & padding */}
+                        <div>
+                          {stage.id === 'APPLIED' && (
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleOpenTransition(app, 'SCREENING');
+                              }}
+                              className="inline-flex items-center gap-1 px-2.5 py-1 bg-blue-50 dark:bg-blue-950/60 text-blue-700 dark:text-blue-300 hover:bg-blue-100 dark:hover:bg-blue-900/60 rounded-md text-[11px] font-semibold border border-blue-200/60 dark:border-blue-800/60 transition-colors whitespace-nowrap"
+                            >
+                              <span>Screen</span>
+                              <ArrowRight className="w-3 h-3" />
+                            </button>
+                          )}
+
+                          {stage.id === 'SCREENING' && (
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleOpenTransition(app, 'INTERVIEW');
+                              }}
+                              className="inline-flex items-center gap-1 px-2.5 py-1 bg-amber-50 dark:bg-amber-950/60 text-amber-700 dark:text-amber-300 hover:bg-amber-100 dark:hover:bg-amber-900/60 rounded-md text-[11px] font-semibold border border-amber-200/60 dark:border-amber-800/60 transition-colors whitespace-nowrap"
+                            >
+                              <span>Interview</span>
+                              <ArrowRight className="w-3 h-3" />
+                            </button>
+                          )}
+
+                          {stage.id === 'INTERVIEW' && (
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleOpenTransition(app, 'SELECTED');
+                              }}
+                              className="inline-flex items-center gap-1 px-2.5 py-1 bg-purple-50 dark:bg-purple-950/60 text-purple-700 dark:text-purple-300 hover:bg-purple-100 dark:hover:bg-purple-900/60 rounded-md text-[11px] font-semibold border border-purple-200/60 dark:border-purple-800/60 transition-colors whitespace-nowrap"
+                            >
+                              <span>Select</span>
+                              <ArrowRight className="w-3 h-3" />
+                            </button>
+                          )}
+
+                          {stage.id === 'SELECTED' && (
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleOpenTransition(app, 'OFFERED');
+                              }}
+                              className="inline-flex items-center gap-1 px-2.5 py-1 bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 hover:bg-emerald-100 dark:hover:bg-emerald-900/60 rounded-md text-[11px] font-semibold border border-emerald-200/60 dark:border-emerald-800/60 transition-colors whitespace-nowrap"
+                            >
+                              <span>Offer</span>
+                              <ArrowRight className="w-3 h-3" />
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                    </div>
                   ))}
                 </div>
               </div>
+            );
+          })}
+        </div>
+      </div>
 
-              {/* Activity History Button */}
-              <div className="pt-2">
-                <button
-                  onClick={handleOpenActivityHistory}
-                  className="w-full py-2 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 rounded-lg font-semibold text-sm border border-indigo-200"
-                >
-                  View Activity History
-                </button>
+      {/* Candidate Details Modal (z-50) */}
+      {activeCandidate && (
+        <div className="fixed inset-0 z-50 bg-slate-950/60 backdrop-blur-sm flex items-center justify-center p-4 overscroll-contain overflow-y-auto">
+          <div className="bg-white dark:bg-[#161b22] max-w-lg w-full p-6 rounded-2xl shadow-2xl border border-slate-200 dark:border-[#30363d] space-y-5 my-auto relative overscroll-contain">
+            {/* Header */}
+            <div className="flex justify-between items-start border-b border-slate-100 dark:border-[#30363d] pb-4">
+              <div className="min-w-0 pr-4">
+                <h3 className="text-lg font-bold text-slate-900 dark:text-white truncate">
+                  {activeCandidate.candidate_name}
+                </h3>
+                <p className="text-xs text-slate-500 dark:text-slate-400 mt-1 truncate font-mono">
+                  {activeCandidate.candidate_email} • {activeCandidate.candidate_phone || 'No phone'}
+                </p>
+              </div>
+              <button
+                onClick={() => setActiveCandidate(null)}
+                className="p-1 rounded-lg text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors flex-shrink-0"
+                aria-label="Close details"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Standardized Key-Value Metadata Grid */}
+            <div className="grid grid-cols-2 gap-x-6 gap-y-4 p-4 rounded-xl bg-slate-50 dark:bg-[#1c2128] border border-slate-200/80 dark:border-[#30363d]">
+              <div className="min-w-0">
+                <span className="block text-[11px] font-semibold uppercase tracking-wider text-slate-400 dark:text-slate-400 mb-1">
+                  Applied Position
+                </span>
+                <span className="block text-sm font-medium text-slate-900 dark:text-slate-100 truncate">
+                  {activeCandidate.job_title}
+                </span>
               </div>
 
-              {/* Resume Download */}
+              <div className="min-w-0">
+                <span className="block text-[11px] font-semibold uppercase tracking-wider text-slate-400 dark:text-slate-400 mb-1">
+                  Current Stage
+                </span>
+                <span className="inline-flex items-center px-2.5 py-0.5 rounded-md text-xs font-semibold bg-indigo-50 text-indigo-700 dark:bg-indigo-950/60 dark:text-indigo-300 border border-indigo-200/60 dark:border-indigo-800/60">
+                  {activeCandidate.current_stage}
+                </span>
+              </div>
+
+              <div className="min-w-0">
+                <span className="block text-[11px] font-semibold uppercase tracking-wider text-slate-400 dark:text-slate-400 mb-1">
+                  Experience
+                </span>
+                <span className="block text-sm font-medium text-slate-900 dark:text-slate-100 tabular-nums">
+                  {activeCandidate.experience_years != null ? activeCandidate.experience_years : '0'} years
+                </span>
+              </div>
+
+              <div className="min-w-0">
+                <span className="block text-[11px] font-semibold uppercase tracking-wider text-slate-400 dark:text-slate-400 mb-1">
+                  Applied Date
+                </span>
+                <span className="block text-sm font-medium text-slate-900 dark:text-slate-100 tabular-nums">
+                  {activeCandidate.applied_at
+                    ? new Date(activeCandidate.applied_at).toLocaleDateString(undefined, {
+                        year: 'numeric',
+                        month: 'short',
+                        day: 'numeric'
+                      })
+                    : 'N/A'}
+                </span>
+              </div>
+            </div>
+
+            {/* Declared Competencies */}
+            <div>
+              <span className="text-[11px] font-semibold uppercase tracking-wider text-slate-400 dark:text-slate-400 block mb-2">
+                Declared Competencies
+              </span>
+              <div className="flex flex-wrap gap-2">
+                {activeCandidate.skills && activeCandidate.skills.length > 0 ? (
+                  activeCandidate.skills.map((s, idx) => (
+                    <span
+                      key={idx}
+                      className="px-2.5 py-1 bg-indigo-50 dark:bg-indigo-950/50 text-indigo-700 dark:text-indigo-300 rounded-lg text-xs font-medium border border-indigo-200/60 dark:border-indigo-800/60"
+                    >
+                      {s}
+                    </span>
+                  ))
+                ) : (
+                  <span className="text-xs text-slate-400 italic">No competencies listed</span>
+                )}
+              </div>
+            </div>
+
+            {/* Action Buttons: Activity History & Resume Download */}
+            <div className="pt-2 space-y-2.5">
+              <button
+                onClick={handleOpenActivityHistory}
+                className="w-full py-2.5 px-4 bg-indigo-50 dark:bg-indigo-950/60 hover:bg-indigo-100 dark:hover:bg-indigo-900/60 text-indigo-700 dark:text-indigo-300 rounded-xl font-semibold text-xs sm:text-sm border border-indigo-200/80 dark:border-indigo-800/80 transition-colors flex items-center justify-center gap-2"
+              >
+                <Clock className="w-4 h-4 flex-shrink-0" />
+                <span>View Activity History</span>
+              </button>
+
               {activeCandidate.resume_id && (
-                <div className="pt-2">
-                  <button
-                    onClick={() =>
-                      handleDownloadResume(
-                        activeCandidate.resume_id,
-                        activeCandidate.resume_filename
-                      )
-                    }
-                    className="w-full py-2 bg-slate-100 hover:bg-slate-200 text-slate-800 rounded-lg font-semibold flex items-center justify-center gap-2 border border-slate-200"
-                  >
-                    <Download className="w-4 h-4 text-indigo-600" />
-                    Download Resume ({activeCandidate.resume_filename})
-                  </button>
-                </div>
+                <button
+                  onClick={() =>
+                    handleDownloadResume(
+                      activeCandidate.resume_id,
+                      activeCandidate.resume_filename
+                    )
+                  }
+                  className="w-full py-2.5 px-4 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-800 dark:text-slate-200 rounded-xl font-medium text-xs sm:text-sm flex items-center justify-center gap-2 border border-slate-200 dark:border-slate-700 transition-colors"
+                >
+                  <Download className="w-4 h-4 text-indigo-600 dark:text-indigo-400 flex-shrink-0" />
+                  <span className="truncate">Download Resume ({activeCandidate.resume_filename})</span>
+                </button>
               )}
             </div>
           </div>
         </div>
       )}
 
-      {/* Activity History Drawer */}
+      {/* Activity History Slide-Over Drawer (z-[70]) */}
       {showActivityDrawer && activeCandidate && (
-        <div className="fixed inset-0 z-[60] bg-slate-900/40 flex justify-end">
-          <div className="bg-white w-full max-w-md h-full shadow-2xl flex flex-col">
-
+        <div className="fixed inset-0 z-[70] bg-slate-950/65 backdrop-blur-xs flex justify-end overscroll-contain">
+          <div className="bg-white dark:bg-[#161b22] w-full max-w-md h-full shadow-2xl border-l border-slate-200 dark:border-[#30363d] flex flex-col overscroll-contain">
             {/* Drawer Header */}
-            <div className="p-5 border-b border-slate-200 flex items-center justify-between">
-              <div>
-                <h3 className="text-lg font-bold text-slate-900">
+            <div className="p-6 border-b border-slate-200 dark:border-[#30363d] flex items-center justify-between flex-shrink-0">
+              <div className="min-w-0 pr-4">
+                <h3 className="text-lg font-bold text-slate-900 dark:text-white">
                   Activity History
                 </h3>
-
-                <p className="text-sm text-slate-500 mt-1">
+                <p className="text-xs text-slate-500 dark:text-slate-400 mt-1 truncate">
                   {activeCandidate.candidate_name}
                 </p>
               </div>
 
               <button
                 onClick={() => setShowActivityDrawer(false)}
-                className="text-slate-500 hover:text-slate-900 text-xl"
+                className="p-1.5 rounded-lg text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors flex-shrink-0"
+                aria-label="Close activity history"
               >
-                &times;
+                <X className="w-5 h-5" />
               </button>
             </div>
 
             {/* Drawer Content */}
-            <div className="p-5 flex-1 overflow-y-auto">
-
+            <div className="p-6 flex-1 min-h-0 overflow-y-auto overscroll-contain space-y-6 custom-scrollbar">
               {/* Loading State */}
               {activityLoading && (
-                <div className="text-sm text-indigo-600 py-4">
+                <div className="text-xs font-medium text-indigo-600 dark:text-indigo-400 flex items-center gap-2 py-4">
+                  <div className="w-2 h-2 rounded-full bg-indigo-600 animate-pulse" />
                   Loading activity history...
                 </div>
               )}
 
               {/* Error State */}
               {activityError && (
-                <div className="bg-red-50 border border-red-200 rounded-lg p-3 mb-4">
-                  <p className="text-sm text-red-700">
+                <div className="bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-800 rounded-xl p-3.5">
+                  <p className="text-xs font-medium text-rose-700 dark:text-rose-300">
                     {activityError}
                   </p>
                 </div>
@@ -511,87 +583,99 @@ export const HrPipelineBoard = () => {
 
               {/* Activity Timeline */}
               {!activityLoading && !activityError && activityData && (
-                <div className="space-y-4 mb-5">
-                  <h4 className="font-semibold text-slate-800">
+                <div className="space-y-4">
+                  <h4 className="text-xs font-bold uppercase tracking-wider text-slate-400 dark:text-slate-400">
                     Activity Timeline
                   </h4>
 
                   {activityData.timeline?.length > 0 ? (
-                    activityData.timeline.map((item) => (
-                      <div
-                        key={item.id}
-                        className="border-l-2 border-indigo-300 pl-4 pb-3"
-                      >
-                        <p className="text-sm font-semibold text-slate-800">
-                          {item.from_stage || 'New Application'} → {item.to_stage}
-                        </p>
+                    <div className="space-y-4 relative before:absolute before:inset-0 before:left-3 before:w-0.5 before:bg-slate-200 dark:before:bg-slate-800">
+                      {activityData.timeline.map((item) => (
+                        <div
+                          key={item.id}
+                          className="relative pl-8 space-y-1"
+                        >
+                          <div className="absolute left-1.5 top-1.5 w-3.5 h-3.5 rounded-full bg-white dark:bg-[#161b22] border-2 border-indigo-600 dark:border-indigo-400" />
 
-                        <p className="text-xs text-slate-500 mt-1">
-                          {item.changed_at
-                            ? new Date(item.changed_at).toLocaleString()
-                            : 'Date not available'}
-                        </p>
+                          <div className="p-3 bg-slate-50 dark:bg-[#1c2128] rounded-xl border border-slate-200/80 dark:border-[#30363d] space-y-1.5">
+                            <div className="flex items-center justify-between gap-2">
+                              <p className="text-xs font-semibold text-slate-900 dark:text-white">
+                                {item.from_stage || 'New Application'} → <span className="text-indigo-600 dark:text-indigo-400">{item.to_stage}</span>
+                              </p>
+                            </div>
 
-                        <p className="text-xs text-slate-600 mt-1">
-                          Changed by: {item.changed_by_name || 'Unknown'}
-                          {item.changed_by_role
-                            ? ` (${item.changed_by_role})`
-                            : ''}
-                        </p>
+                            <p className="text-[11px] font-mono tabular-nums text-slate-500 dark:text-slate-400">
+                              {item.changed_at
+                                ? new Date(item.changed_at).toLocaleString()
+                                : 'Date not available'}
+                            </p>
 
-                        {item.notes && (
-                          <p className="text-sm text-slate-600 mt-2">
-                            Note: {item.notes}
-                          </p>
-                        )}
-                      </div>
-                    ))
+                            <p className="text-xs text-slate-600 dark:text-slate-300">
+                              Changed by: <span className="font-medium">{item.changed_by_name || 'System / Recruiter'}</span>
+                              {item.changed_by_role ? ` (${item.changed_by_role})` : ''}
+                            </p>
+
+                            {item.notes && (
+                              <p className="text-xs text-slate-600 dark:text-slate-300 bg-white dark:bg-[#161b22] p-2 rounded-lg border border-slate-200/60 dark:border-slate-800 mt-1 italic">
+                                "{item.notes}"
+                              </p>
+                            )}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
                   ) : (
-                    <p className="text-sm text-slate-500">
+                    <p className="text-xs text-slate-500 dark:text-slate-400 italic">
                       No activity recorded yet.
                     </p>
                   )}
                 </div>
               )}
 
-              {/* Application Details */}
-              <h4 className="text-sm font-semibold text-slate-800 mb-3">
-                Application Details
-              </h4>
+              {/* Application Details Summary */}
+              <div className="space-y-3 pt-2">
+                <h4 className="text-xs font-bold uppercase tracking-wider text-slate-400 dark:text-slate-400">
+                  Application Overview
+                </h4>
 
-              <div className="border border-slate-200 rounded-lg p-4 space-y-3">
-                <div>
-                  <p className="text-xs text-slate-500">Applied Position</p>
-                  <p className="text-sm font-medium text-slate-800">
-                    {activityData?.job_title || activeCandidate.job_title}
-                  </p>
-                </div>
+                <div className="border border-slate-200 dark:border-[#30363d] rounded-xl p-4 bg-slate-50/70 dark:bg-[#1c2128] grid grid-cols-2 gap-x-6 gap-y-3">
+                  <div className="col-span-2 min-w-0">
+                    <p className="text-[11px] font-semibold uppercase tracking-wider text-slate-400 dark:text-slate-400 mb-0.5">Applied Position</p>
+                    <p className="text-sm font-medium text-slate-900 dark:text-white truncate">
+                      {activityData?.job_title || activeCandidate.job_title}
+                    </p>
+                  </div>
 
-                <div>
-                  <p className="text-xs text-slate-500">Current Stage</p>
-                  <p className="text-sm font-semibold text-indigo-600">
-                    {activityData?.current_stage || activeCandidate.current_stage}
-                  </p>
-                </div>
+                  <div className="min-w-0">
+                    <p className="text-[11px] font-semibold uppercase tracking-wider text-slate-400 dark:text-slate-400 mb-0.5">Current Stage</p>
+                    <span className="inline-flex items-center px-2 py-0.5 rounded-md text-xs font-semibold bg-indigo-50 text-indigo-700 dark:bg-indigo-950/60 dark:text-indigo-300 border border-indigo-200/60 dark:border-indigo-800/60">
+                      {activityData?.current_stage || activeCandidate.current_stage}
+                    </span>
+                  </div>
 
-                <div>
-                  <p className="text-xs text-slate-500">Application Date</p>
-                  <p className="text-sm font-medium text-slate-800">
-                    {(activityData?.applied_at || activeCandidate.applied_at)
-                      ? new Date(
-                          activityData?.applied_at || activeCandidate.applied_at
-                        ).toLocaleDateString()
-                      : 'Not available'}
-                  </p>
+                  <div className="min-w-0">
+                    <p className="text-[11px] font-semibold uppercase tracking-wider text-slate-400 dark:text-slate-400 mb-0.5">Application Date</p>
+                    <p className="text-sm font-medium text-slate-900 dark:text-white tabular-nums">
+                      {(activityData?.applied_at || activeCandidate.applied_at)
+                        ? new Date(
+                            activityData?.applied_at || activeCandidate.applied_at
+                          ).toLocaleDateString(undefined, {
+                            year: 'numeric',
+                            month: 'short',
+                            day: 'numeric'
+                          })
+                        : 'Not available'}
+                    </p>
+                  </div>
                 </div>
               </div>
             </div>
 
             {/* Drawer Footer */}
-            <div className="p-4 border-t border-slate-200">
+            <div className="p-4 sm:p-6 border-t border-slate-200 dark:border-[#30363d] flex-shrink-0">
               <button
                 onClick={() => setShowActivityDrawer(false)}
-                className="w-full py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg text-sm font-semibold"
+                className="w-full py-2.5 px-4 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 rounded-xl text-xs sm:text-sm font-semibold transition-colors"
               >
                 Close
               </button>
@@ -600,33 +684,33 @@ export const HrPipelineBoard = () => {
         </div>
       )}
 
-      {/* Stage Transition Dialog */}
+      {/* Stage Transition Dialog (z-[60]) */}
       {transitioningApp && (
-        <div className="fixed inset-0 z-50 bg-slate-900/40 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="bg-white max-w-md w-full p-6 rounded-2xl shadow-xl border border-slate-200 space-y-4">
-
-            <h3 className="text-lg font-bold text-slate-900">
-              Confirm Stage Promotion
-            </h3>
-
-            <p className="text-xs text-slate-600">
-              Transition{' '}
-              <span className="font-semibold">
-                {transitioningApp.candidate_name}
-              </span>{' '}
-              from{' '}
-              <span className="font-mono font-bold text-slate-700">
-                {transitioningApp.current_stage}
-              </span>{' '}
-              to{' '}
-              <span className="font-mono font-bold text-indigo-600">
-                {targetStage}
-              </span>.
-            </p>
+        <div className="fixed inset-0 z-[60] bg-slate-950/60 backdrop-blur-sm flex items-center justify-center p-4 overscroll-contain overflow-y-auto">
+          <div className="bg-white dark:bg-[#161b22] max-w-md w-full p-6 rounded-2xl shadow-2xl border border-slate-200 dark:border-[#30363d] space-y-4 my-auto relative overscroll-contain">
+            <div className="flex justify-between items-start border-b border-slate-100 dark:border-[#30363d] pb-3">
+              <div>
+                <h3 className="text-lg font-bold text-slate-900 dark:text-white">
+                  Confirm Stage Transition
+                </h3>
+                <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
+                  Moving <span className="font-semibold text-slate-800 dark:text-slate-200">{transitioningApp.candidate_name}</span> from{' '}
+                  <span className="font-mono font-bold text-slate-700 dark:text-slate-300">{transitioningApp.current_stage}</span> to{' '}
+                  <span className="font-mono font-bold text-indigo-600 dark:text-indigo-400">{targetStage}</span>.
+                </p>
+              </div>
+              <button
+                onClick={() => setTransitioningApp(null)}
+                className="p-1 rounded-lg text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors flex-shrink-0"
+                aria-label="Close dialog"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
 
             <form onSubmit={handleExecuteTransition} className="space-y-4">
               <div>
-                <label className="block text-xs font-semibold text-slate-700 mb-1">
+                <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5">
                   Mandatory Audit Log Notes *
                 </label>
 
@@ -636,22 +720,22 @@ export const HrPipelineBoard = () => {
                   value={transitionNotes}
                   onChange={(e) => setTransitionNotes(e.target.value)}
                   placeholder="Reason for stage transition, review summary, or interviewer feedback..."
-                  className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm outline-none focus:ring-2 focus:ring-indigo-500"
+                  className="w-full px-3 py-2 border border-slate-300 dark:border-slate-700 rounded-xl text-xs sm:text-sm bg-white dark:bg-[#1c2128] text-slate-900 dark:text-white placeholder-slate-400 outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all"
                 />
               </div>
 
-              <div className="flex justify-end gap-2">
+              <div className="flex justify-end gap-2.5 pt-2">
                 <button
                   type="button"
                   onClick={() => setTransitioningApp(null)}
-                  className="px-4 py-2 border border-slate-300 rounded-lg text-xs font-medium text-slate-700 hover:bg-slate-50"
+                  className="px-4 py-2 border border-slate-300 dark:border-slate-700 rounded-xl text-xs font-semibold text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
                 >
                   Cancel
                 </button>
 
                 <button
                   type="submit"
-                  className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-xs font-semibold shadow-sm"
+                  className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-semibold shadow-sm transition-colors"
                 >
                   Confirm Transition
                 </button>

@@ -57,21 +57,21 @@ function AppShell() {
   }, []);
 
   return (
-    <div className="shell">
+    <div className="shell h-screen max-h-screen overflow-hidden flex flex-col">
       <Navbar
         onOpenPalette={() => setPaletteOpen(true)}
         onToggleMobileSidebar={() => setMobileSidebarOpen((o) => !o)}
       />
       <CommandPalette open={paletteOpen} onClose={() => setPaletteOpen(false)} />
 
-      <div className="app-layout">
+      <div className="app-layout flex-1 min-h-0 flex overflow-hidden relative">
         <Sidebar
           collapsed={sidebarCollapsed}
           onToggleCollapse={handleToggleSidebar}
           mobileOpen={mobileSidebarOpen}
           onCloseMobile={() => setMobileSidebarOpen(false)}
         />
-        <div className={`app-main-content ${sidebarCollapsed ? 'sidebar-is-collapsed' : ''}`}>
+        <main className={`app-main-content flex-1 min-w-0 h-full overflow-y-auto overflow-x-hidden relative overscroll-contain ${sidebarCollapsed ? 'sidebar-is-collapsed' : ''}`}>
           <Routes>
             {/* Public Routes */}
             <Route path="/" element={<Navigate to="/jobs" replace />} />
@@ -158,7 +158,7 @@ function AppShell() {
               }
             />
           </Routes>
-        </div>
+        </main>
       </div>
     </div>
   );

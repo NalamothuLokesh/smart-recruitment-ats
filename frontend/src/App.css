@@ -7,7 +7,9 @@
 
 /* ── Shell & Base Layout ─────────────────────────────────────────────── */
 .shell {
-  min-height: 100vh;
+  height: 100vh;
+  max-height: 100vh;
+  overflow: hidden;
   display: flex;
   flex-direction: column;
   background-color: var(--background);
@@ -34,15 +36,24 @@
 
 .app-layout {
   display: flex;
-  min-height: calc(100vh - 68px);
+  flex: 1;
+  min-height: 0;
+  height: calc(100vh - 68px);
+  max-height: calc(100vh - 68px);
   position: relative;
+  overflow: hidden;
 }
 
 .app-main-content {
   flex: 1;
   min-width: 0;
+  height: 100%;
+  overflow-y: auto;
+  overflow-x: hidden;
+  overscroll-behavior: contain;
   transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
-  padding-bottom: 40px;
+  display: flex;
+  flex-direction: column;
 }
 
 /* ══════════════════════════════════════════════════════════════════════════
@@ -413,14 +424,14 @@
   border-right: 1px solid var(--border);
   display: flex;
   flex-direction: column;
-  position: sticky;
-  top: 68px;
-  height: calc(100vh - 68px);
-  align-self: flex-start;
+  position: relative;
+  height: 100%;
+  max-height: 100%;
   z-index: 40;
   transition: width 0.25s cubic-bezier(0.16, 1, 0.3, 1), background-color 200ms ease;
   overflow-y: auto;
   overflow-x: hidden;
+  overscroll-behavior: contain;
   flex-shrink: 0;
 }
 

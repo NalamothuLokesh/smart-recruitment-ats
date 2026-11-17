@@ -284,3 +284,24 @@ button:disabled,
 .dark .divide-slate-200 > :not([hidden]) ~ :not([hidden]) {
   border-color: var(--border) !important;
 }
+
+/* ── Scroll Containment & Refined Custom Scrollbars ────────────────── */
+.custom-scrollbar::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+.custom-scrollbar::-webkit-scrollbar-track {
+  background: transparent;
+}
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  background: var(--border);
+  border-radius: 9999px;
+}
+.custom-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: var(--muted-foreground);
+}
+
+.overscroll-contain {
+  overscroll-behavior: contain;
+}
+
