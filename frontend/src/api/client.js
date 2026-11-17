@@ -82,14 +82,18 @@ export const candidateApi = {
       headers: { 'Content-Type': 'multipart/form-data' }
     });
   },
-  downloadResume: async (resumeId, filename = 'resume.pdf') => {
+  getResumeFile: async (resumeId, filename = 'resume.pdf') => {
     const token = localStorage.getItem('ats_token');
     const response = await fetch(`${API_BASE_URL}/candidates/resume/${resumeId}/download`, {
       headers: { Authorization: `Bearer ${token}` }
     });
-    if (!response.ok) throw new Error('Failed to download resume file.');
+    if (!response.ok) throw new Error('Failed to retrieve resume file.');
     const blob = await response.blob();
-    const url = window.URL.createObjectURL(blob);
+    return new File([blob], filename, { type: blob.type || 'application/octet-stream' });
+  },
+  downloadResume: async (resumeId, filename = 'resume.pdf') => {
+    const file = await candidateApi.getResumeFile(resumeId, filename);
+    const url = window.URL.createObjectURL(file);
     const link = document.createElement('a');
     link.href = url;
     link.setAttribute('download', filename);
@@ -97,7 +101,8 @@ export const candidateApi = {
     link.click();
     link.remove();
     window.setTimeout(() => window.URL.revokeObjectURL(url), 1000);
-  }
+  },
+  deleteResume: (resumeId) => apiClient.delete(`/candidates/resume/${resumeId}`)
 };
 
 // ==========================================

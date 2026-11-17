@@ -36,6 +36,19 @@ router.get(
 );
 
 /**
+ * @route   DELETE /api/v1/applications/:id
+ * @desc    Candidate deletes own new application within the first 24 hours
+ * @access  CANDIDATE
+ */
+router.delete(
+  '/:id',
+  requireAuth,
+  requireRole('CANDIDATE'),
+  [param('id').isInt().withMessage('Application ID must be an integer.'), validate],
+  applicationController.deleteMyApplication
+);
+
+/**
  * @route   GET /api/v1/applications
  * @desc    HR/Admin pipeline management view with filters
  * @access  HR, ADMIN

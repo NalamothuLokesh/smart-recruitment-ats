@@ -66,6 +66,19 @@ class CandidateController {
       next(error);
     }
   }
+
+  async deleteResume(req, res, next) {
+    try {
+      const result = await candidateService.deleteResume(req.user.id, req.params.id);
+      res.status(200).json({
+        success: true,
+        message: 'Resume deleted successfully.',
+        data: result
+      });
+    } catch (error) {
+      next(error);
+    }
+  }
 }
 
 module.exports = new CandidateController();

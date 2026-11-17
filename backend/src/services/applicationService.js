@@ -91,6 +91,10 @@ class ApplicationService {
   async getMyApplications(candidateId) {
     const [applications] = await db.query(
       `SELECT a.id, a.job_id, a.resume_id, a.current_stage, a.applied_at, a.updated_at,
+              IF(a.current_stage = 'APPLIED'
+                 AND a.applied_at > DATE_SUB(NOW(), INTERVAL 24 HOUR)
+                 AND NOT EXISTS (SELECT 1 FROM interviews i WHERE i.application_id = a.id)
+                 AND NOT EXISTS (SELECT 1 FROM offers o2 WHERE o2.application_id = a.id), 1, 0) AS can_withdraw,
               j.title as job_title, j.department, j.location, j.employment_type,
               r.original_filename as resume_filename,
               o.id as offer_id, o.status as offer_status
@@ -131,6 +135,68 @@ class ApplicationService {
     );
 
     return enhancedApps;
+  }
+
+  /**
+   * Candidate deletes their own newly submitted application within 24 hours.
+   * Keep applications that have advanced or have related hiring activity.
+   */
+  async deleteMyApplication(candidateId, applicationId) {
+    const connection = await db.pool.getConnection();
+
+    try {
+      await connection.beginTransaction();
+      const [applications] = await connection.query(
+        `SELECT id, current_stage,
+                (applied_at > DATE_SUB(NOW(), INTERVAL 24 HOUR)) AS within_window
+         FROM applications
+         WHERE id = ? AND candidate_id = ?
+         FOR UPDATE`,
+        [applicationId, candidateId]
+      );
+
+      if (applications.length === 0) {
+        const error = new Error('Application not found.');
+        error.statusCode = 404;
+        throw error;
+      }
+
+      const application = applications[0];
+      if (!application.within_window) {
+        const error = new Error('Applications can only be deleted within 24 hours of submission.');
+        error.statusCode = 403;
+        throw error;
+      }
+      if (application.current_stage !== 'APPLIED') {
+        const error = new Error('This application can no longer be deleted because it has been reviewed.');
+        error.statusCode = 409;
+        throw error;
+      }
+
+      const [relatedRecords] = await connection.query(
+        `SELECT
+           EXISTS(SELECT 1 FROM interviews WHERE application_id = ?) AS has_interviews,
+           EXISTS(SELECT 1 FROM offers WHERE application_id = ?) AS has_offers`,
+        [applicationId, applicationId]
+      );
+      if (relatedRecords[0].has_interviews || relatedRecords[0].has_offers) {
+        const error = new Error('This application has hiring activity and can no longer be deleted.');
+        error.statusCode = 409;
+        throw error;
+      }
+
+      await connection.query(
+        'DELETE FROM applications WHERE id = ? AND candidate_id = ?',
+        [applicationId, candidateId]
+      );
+      await connection.commit();
+      return { id: Number(applicationId) };
+    } catch (error) {
+      await connection.rollback();
+      throw error;
+    } finally {
+      connection.release();
+    }
   }
 
   /**

@@ -2,7 +2,7 @@
 -- Smart Recruitment & Applicant Tracking System (ATS)
 -- Database Seed Data: seed_data.sql
 -- Default test password for all synthetic accounts: Password123!
--- (Bcrypt hash: $2a$10$wKq9yF1uIe4dK3I8y4/Ue.v8bT8n4yR9vB4wK7uX0kE0zG5y2uM6O)
+-- (Bcrypt hash: $2a$10$71aUOsV7eJiyzY9txjjvCuf/hkMoigTQr67.Ftn3EHeJBHR.UAtQK)
 -- ============================================================================
 
 SET FOREIGN_KEY_CHECKS = 0;
@@ -26,12 +26,12 @@ INSERT INTO organizations (id, name, domain, created_at) VALUES
 -- 2. Synthetic Users (Known test password for all: Password123!)
 -- Hash generated via bcrypt with 10 rounds for 'Password123!'
 INSERT INTO users (id, org_id, full_name, email, password_hash, role, is_active, created_at) VALUES
-(1, 1, 'Sarah Connor', 'admin@novatech.io', '$2a$10$wKq9yF1uIe4dK3I8y4/Ue.v8bT8n4yR9vB4wK7uX0kE0zG5y2uM6O', 'ADMIN', TRUE, '2026-01-02 09:00:00'),
-(2, 1, 'David Miller', 'hr@novatech.io', '$2a$10$wKq9yF1uIe4dK3I8y4/Ue.v8bT8n4yR9vB4wK7uX0kE0zG5y2uM6O', 'HR', TRUE, '2026-01-03 09:30:00'),
-(3, NULL, 'Alex Rivera', 'alex.rivera@example.com', '$2a$10$wKq9yF1uIe4dK3I8y4/Ue.v8bT8n4yR9vB4wK7uX0kE0zG5y2uM6O', 'CANDIDATE', TRUE, '2026-01-10 10:15:00'),
-(4, NULL, 'Elena Rostova', 'elena.rostova@example.com', '$2a$10$wKq9yF1uIe4dK3I8y4/Ue.v8bT8n4yR9vB4wK7uX0kE0zG5y2uM6O', 'CANDIDATE', TRUE, '2026-01-11 11:45:00'),
-(5, NULL, 'Marcus Chen', 'marcus.chen@example.com', '$2a$10$wKq9yF1uIe4dK3I8y4/Ue.v8bT8n4yR9vB4wK7uX0kE0zG5y2uM6O', 'CANDIDATE', TRUE, '2026-01-12 14:20:00'),
-(6, NULL, 'Priya Sharma', 'priya.sharma@example.com', '$2a$10$wKq9yF1uIe4dK3I8y4/Ue.v8bT8n4yR9vB4wK7uX0kE0zG5y2uM6O', 'CANDIDATE', TRUE, '2026-01-13 16:00:00');
+(1, 1, 'Sarah Connor', 'admin@novatech.io', '$2a$10$71aUOsV7eJiyzY9txjjvCuf/hkMoigTQr67.Ftn3EHeJBHR.UAtQK', 'ADMIN', TRUE, '2026-01-02 09:00:00'),
+(2, 1, 'David Miller', 'hr@novatech.io', '$2a$10$71aUOsV7eJiyzY9txjjvCuf/hkMoigTQr67.Ftn3EHeJBHR.UAtQK', 'HR', TRUE, '2026-01-03 09:30:00'),
+(3, NULL, 'Alex Rivera', 'alex.rivera@example.com', '$2a$10$71aUOsV7eJiyzY9txjjvCuf/hkMoigTQr67.Ftn3EHeJBHR.UAtQK', 'CANDIDATE', TRUE, '2026-01-10 10:15:00'),
+(4, NULL, 'Elena Rostova', 'elena.rostova@example.com', '$2a$10$71aUOsV7eJiyzY9txjjvCuf/hkMoigTQr67.Ftn3EHeJBHR.UAtQK', 'CANDIDATE', TRUE, '2026-01-11 11:45:00'),
+(5, NULL, 'Marcus Chen', 'marcus.chen@example.com', '$2a$10$71aUOsV7eJiyzY9txjjvCuf/hkMoigTQr67.Ftn3EHeJBHR.UAtQK', 'CANDIDATE', TRUE, '2026-01-12 14:20:00'),
+(6, NULL, 'Priya Sharma', 'priya.sharma@example.com', '$2a$10$71aUOsV7eJiyzY9txjjvCuf/hkMoigTQr67.Ftn3EHeJBHR.UAtQK', 'CANDIDATE', TRUE, '2026-01-13 16:00:00');
 
 -- 3. Candidate Profiles
 INSERT INTO candidate_profiles (id, user_id, phone, skills_json, experience_years, linkedin_url, updated_at) VALUES

@@ -13,7 +13,12 @@ import {
   Gift, 
   ArrowRight,
   AlertCircle,
-  Calendar
+  Calendar,
+  MoreVertical,
+  Share2,
+  Copy,
+  Mail,
+  Trash2
 } from 'lucide-react';
 
 /**
@@ -48,6 +53,11 @@ export const CandidateDashboard = () => {
   const [uploadError, setUploadError] = useState('');
   const [downloadError, setDownloadError] = useState('');
   const [downloadingResumeId, setDownloadingResumeId] = useState(null);
+  const [resumeMenuId, setResumeMenuId] = useState(null);
+  const [resumeToDelete, setResumeToDelete] = useState(null);
+  const [deletingResumeId, setDeletingResumeId] = useState(null);
+  const [resumeActionMessage, setResumeActionMessage] = useState('');
+  const [resumeActionError, setResumeActionError] = useState('');
   const [profileSaving, setProfileSaving] = useState(false);
   const [profileSaveError, setProfileSaveError] = useState('');
   const [feedback, setFeedback] = useState(() =>
@@ -179,6 +189,64 @@ export const CandidateDashboard = () => {
       setDownloadError(err.message || 'Could not download your resume. Please try again.');
     } finally {
       setDownloadingResumeId(null);
+    }
+  };
+
+  const handleResumeShare = async (resume) => {
+    setResumeMenuId(null);
+    setResumeActionMessage('');
+    setResumeActionError('');
+    try {
+      if (!navigator.share || !navigator.canShare) {
+        throw new Error('File sharing is not supported in this browser. Download the resume to share it manually.');
+      }
+      const file = await candidateApi.getResumeFile(resume.id, resume.original_filename);
+      if (!navigator.canShare({ files: [file] })) {
+        throw new Error('This browser cannot share resume files. Download the resume to share it manually.');
+      }
+      await navigator.share({ title: resume.original_filename, files: [file] });
+      setResumeActionMessage('Resume shared.');
+    } catch (err) {
+      if (err.name !== 'AbortError') {
+        setResumeActionError(err.message || 'Could not share this resume.');
+      }
+    }
+  };
+
+  const handleCopyResumeName = async (resume) => {
+    setResumeMenuId(null);
+    setResumeActionMessage('');
+    setResumeActionError('');
+    try {
+      await navigator.clipboard.writeText(resume.original_filename);
+      setResumeActionMessage('Resume file name copied.');
+    } catch {
+      setResumeActionError('Could not copy the file name. Check your browser clipboard permissions.');
+    }
+  };
+
+  const handleEmailResume = (resume) => {
+    const subject = encodeURIComponent(`Resume: ${resume.original_filename}`);
+    const body = encodeURIComponent(
+      `Please find my resume attached: ${resume.original_filename}.\n\nDownload it from the Resume Vault and attach the file before sending.`
+    );
+    setResumeMenuId(null);
+    window.location.href = `mailto:?subject=${subject}&body=${body}`;
+  };
+
+  const handleDeleteResume = async () => {
+    if (!resumeToDelete || deletingResumeId !== null) return;
+    setDeletingResumeId(resumeToDelete.id);
+    setResumeActionError('');
+    try {
+      await candidateApi.deleteResume(resumeToDelete.id);
+      setFeedback(`Deleted ${resumeToDelete.original_filename}.`);
+      setResumeToDelete(null);
+      await loadData();
+    } catch (err) {
+      setResumeActionError(err.message || 'Could not delete this resume. Please try again.');
+    } finally {
+      setDeletingResumeId(null);
     }
   };
 
@@ -484,37 +552,132 @@ export const CandidateDashboard = () => {
                 {downloadError}
               </p>
             )}
+            {resumeActionMessage && (
+              <p role="status" className="rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs text-emerald-800">
+                {resumeActionMessage}
+              </p>
+            )}
+            {resumeActionError && !resumeToDelete && (
+              <p role="alert" className="rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-xs text-rose-700">
+                {resumeActionError}
+              </p>
+            )}
 
             {profile?.resumes?.map((resume) => (
               <div
                 key={resume.id}
-                className="p-3 bg-slate-50 rounded-lg border border-slate-200 flex items-center justify-between text-xs"
+                className="relative p-3 bg-slate-50 rounded-lg border border-slate-200 flex items-center justify-between gap-2 text-xs"
               >
-                <div className="truncate mr-2">
-                  <div className="font-semibold text-slate-800 truncate">{resume.original_filename}</div>
+                <div className="min-w-0 truncate">
+                  <button
+                    type="button"
+                    onClick={() => setResumeMenuId(resumeMenuId === resume.id ? null : resume.id)}
+                    className="block max-w-full truncate text-left font-semibold text-slate-800 hover:text-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                    aria-expanded={resumeMenuId === resume.id}
+                    aria-label={`Open actions for ${resume.original_filename}`}
+                  >
+                    {resume.original_filename}
+                  </button>
                   <div className="text-[10px] text-slate-400">
                     {(resume.file_size_bytes / 1024).toFixed(1)} KB • {new Date(resume.uploaded_at).toLocaleDateString()}
                   </div>
                 </div>
 
-                <button
-                  onClick={() => handleResumeDownload(resume)}
-                  disabled={downloadingResumeId !== null}
-                  className="p-1.5 text-indigo-600 hover:bg-indigo-50 disabled:cursor-wait disabled:opacity-60 rounded border border-indigo-200"
-                  title="Download File"
-                  aria-label={`Download ${resume.original_filename}`}
-                >
-                  {downloadingResumeId === resume.id ? (
-                    <span className="text-[10px] font-semibold">...</span>
-                  ) : (
-                    <Download className="w-4 h-4" />
-                  )}
-                </button>
+                <div className="flex shrink-0 items-center gap-1">
+                  <button
+                    type="button"
+                    onClick={() => handleResumeDownload(resume)}
+                    disabled={downloadingResumeId !== null}
+                    className="p-1.5 text-indigo-600 hover:bg-indigo-50 disabled:cursor-wait disabled:opacity-60 rounded border border-indigo-200"
+                    title="Download File"
+                    aria-label={`Download ${resume.original_filename}`}
+                  >
+                    {downloadingResumeId === resume.id ? (
+                      <span className="text-[10px] font-semibold">...</span>
+                    ) : (
+                      <Download className="w-4 h-4" />
+                    )}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setResumeMenuId(resumeMenuId === resume.id ? null : resume.id)}
+                    className="rounded border border-slate-200 p-1.5 text-slate-600 hover:bg-white hover:text-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                    aria-label={`More actions for ${resume.original_filename}`}
+                    aria-haspopup="menu"
+                    aria-expanded={resumeMenuId === resume.id}
+                  >
+                    <MoreVertical className="h-4 w-4" />
+                  </button>
+                </div>
+
+                {resumeMenuId === resume.id && (
+                  <div role="menu" className="absolute right-3 top-12 z-20 min-w-48 rounded-lg border border-slate-200 bg-white p-1.5 shadow-lg">
+                    <button type="button" role="menuitem" onClick={() => handleResumeShare(resume)} className="flex w-full items-center gap-2 rounded-md px-3 py-2 text-left text-xs text-slate-700 hover:bg-slate-50">
+                      <Share2 className="h-3.5 w-3.5" /> Share file
+                    </button>
+                    <button type="button" role="menuitem" onClick={() => handleCopyResumeName(resume)} className="flex w-full items-center gap-2 rounded-md px-3 py-2 text-left text-xs text-slate-700 hover:bg-slate-50">
+                      <Copy className="h-3.5 w-3.5" /> Copy file name
+                    </button>
+                    <button type="button" role="menuitem" onClick={() => handleEmailResume(resume)} className="flex w-full items-center gap-2 rounded-md px-3 py-2 text-left text-xs text-slate-700 hover:bg-slate-50">
+                      <Mail className="h-3.5 w-3.5" /> Email draft
+                    </button>
+                    <button
+                      type="button"
+                      role="menuitem"
+                      onClick={() => {
+                        setResumeMenuId(null);
+                        setResumeActionError('');
+                        setResumeToDelete(resume);
+                      }}
+                      className="flex w-full items-center gap-2 rounded-md px-3 py-2 text-left text-xs text-rose-700 hover:bg-rose-50"
+                    >
+                      <Trash2 className="h-3.5 w-3.5" /> Delete resume
+                    </button>
+                  </div>
+                )}
               </div>
             ))}
+            {profile?.resumes?.length === 0 && (
+              <p className="rounded-lg border border-dashed border-slate-200 px-3 py-4 text-center text-xs text-slate-500">
+                No resumes uploaded yet.
+              </p>
+            )}
           </div>
         </div>
       </div>
+      {resumeToDelete && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 p-4" role="presentation">
+          <div role="dialog" aria-modal="true" aria-labelledby="delete-resume-title" className="w-full max-w-md rounded-2xl border border-slate-200 bg-white p-6 shadow-xl">
+            <h3 id="delete-resume-title" className="text-lg font-bold text-slate-900">Delete this resume?</h3>
+            <p className="mt-2 break-words text-sm text-slate-600">
+              “{resumeToDelete.original_filename}” will be removed from your vault. Applications that used it will remain, but will no longer link to this file.
+            </p>
+            {resumeActionError && (
+              <p role="alert" className="mt-4 rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-sm text-rose-700">
+                {resumeActionError}
+              </p>
+            )}
+            <div className="mt-6 flex justify-end gap-2">
+              <button
+                type="button"
+                onClick={() => { setResumeToDelete(null); setResumeActionError(''); }}
+                disabled={deletingResumeId !== null}
+                className="rounded-lg border border-slate-300 px-4 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50 disabled:opacity-60"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={handleDeleteResume}
+                disabled={deletingResumeId !== null}
+                className="rounded-lg bg-rose-600 px-4 py-2 text-xs font-semibold text-white hover:bg-rose-700 disabled:cursor-wait disabled:opacity-60"
+              >
+                {deletingResumeId !== null ? 'Deleting...' : 'Delete resume'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
