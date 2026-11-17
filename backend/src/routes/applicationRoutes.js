@@ -53,6 +53,21 @@ router.get(
   ],
   applicationController.listApplications
 );
+/**
+ * @route   GET /api/v1/applications/:id
+ * @desc    HR/Admin views one application with its activity timeline
+ * @access  HR, ADMIN
+ */
+router.get(
+  '/:id',
+  requireAuth,
+  requireRole('HR', 'ADMIN'),
+  [
+    param('id').isInt().withMessage('Application ID must be an integer.'),
+    validate
+  ],
+  applicationController.getApplicationById
+);
 
 /**
  * @route   PATCH /api/v1/applications/:id/stage
