@@ -10,6 +10,7 @@ import {
   XCircle,
   Calendar,
   Clock,
+  Briefcase,
   X
 } from 'lucide-react';
 
@@ -45,6 +46,13 @@ const PIPELINE_STAGES = [
     color: 'border-rose-200 dark:border-rose-800 bg-rose-50 dark:bg-rose-950/60 text-rose-700 dark:text-rose-300'
   }
 ];
+
+const getInitials = (name) => {
+  if (!name) return 'C';
+  const parts = name.trim().split(' ').filter(Boolean);
+  if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
+  return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
+};
 
 export const HrPipelineBoard = () => {
   const [applications, setApplications] = useState([]);
@@ -251,9 +259,9 @@ export const HrPipelineBoard = () => {
         </div>
       )}
 
-      {/* Dedicated Horizontal Scroll Container for Kanban Board */}
-      <div className="mt-6 overflow-x-auto pb-6 overscroll-contain custom-scrollbar">
-        <div className="flex gap-4 min-w-max items-start">
+      {/* SaaS Kanban Board: Adaptive Grid + Smooth Natural Scroll (No Scroll Trap) */}
+      <div className="mt-6 overflow-x-auto pb-8 overscroll-contain custom-scrollbar">
+        <div className="flex gap-4 min-w-[1280px] xl:min-w-0 xl:grid xl:grid-cols-6 items-start">
           {PIPELINE_STAGES.map((stage) => {
             const stageApps = applications.filter(
               (a) => a.current_stage === stage.id
@@ -262,12 +270,12 @@ export const HrPipelineBoard = () => {
             return (
               <div
                 key={stage.id}
-                className="w-[310px] min-w-[310px] bg-slate-100/70 dark:bg-[#161b22] rounded-2xl p-3.5 border border-slate-200 dark:border-[#30363d] flex flex-col min-h-[620px] shadow-2xs"
+                className="w-[280px] sm:w-[290px] xl:w-auto bg-slate-100/70 dark:bg-[#161b22] rounded-2xl p-3 border border-slate-200 dark:border-[#30363d] flex flex-col min-h-[460px] shadow-2xs transition-all"
               >
                 {/* Column Header */}
                 <div className="flex items-center justify-between pb-3 mb-3 border-b border-slate-200 dark:border-[#30363d] flex-shrink-0">
                   <span
-                    className={`text-[11px] font-bold uppercase tracking-wider px-2 py-0.5 rounded border ${stage.color}`}
+                    className={`text-[11px] font-bold uppercase tracking-wider px-2.5 py-0.5 rounded-md border ${stage.color}`}
                   >
                     {stage.label}
                   </span>
@@ -277,142 +285,171 @@ export const HrPipelineBoard = () => {
                   </span>
                 </div>
 
-                {/* Candidate Cards List - Isolated Vertical Scroll */}
-                <div className="space-y-3 flex-1 overflow-y-auto overscroll-contain pr-1 custom-scrollbar max-h-[580px]">
-                  {stageApps.map((app) => (
-                    <div
-                      key={app.id}
-                      onClick={() => setActiveCandidate(app)}
-                      className="p-4 bg-white dark:bg-[#1c2128] rounded-xl border border-slate-200 dark:border-[#30363d] shadow-2xs hover:shadow-md hover:border-indigo-400 dark:hover:border-indigo-500 transition-all cursor-pointer flex flex-col justify-between gap-3 min-h-[160px] group"
-                    >
-                      <div>
-                        <div className="flex items-start justify-between gap-2">
-                          <h4 className="text-sm font-semibold text-slate-900 dark:text-white group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors truncate">
-                            {app.candidate_name}
-                          </h4>
+                {/* Candidate Cards List - Clean Natural Flow */}
+                <div className="space-y-3 flex-1 flex flex-col">
+                  {stageApps.map((app) => {
+                    const appSkills = Array.isArray(app.skills)
+                      ? app.skills
+                      : typeof app.skills === 'string'
+                      ? app.skills.split(/[\s,]+/).filter(Boolean)
+                      : [];
+
+                    return (
+                      <div
+                        key={app.id}
+                        onClick={() => setActiveCandidate(app)}
+                        className="group bg-white dark:bg-[#1c2128] rounded-xl p-3.5 border border-slate-200 dark:border-[#30363d] shadow-2xs hover:shadow-md hover:border-indigo-400 dark:hover:border-indigo-500 hover:-translate-y-0.5 transition-all duration-150 cursor-pointer flex flex-col justify-between gap-2.5"
+                      >
+                        <div>
+                          {/* Candidate Avatar Initials + Name + Title */}
+                          <div className="flex items-start gap-2.5">
+                            <div className="w-8 h-8 rounded-full bg-gradient-to-br from-indigo-500 to-indigo-700 text-white font-bold text-xs flex items-center justify-center flex-shrink-0 shadow-xs">
+                              {getInitials(app.candidate_name)}
+                            </div>
+                            <div className="min-w-0 flex-1">
+                              <h4 className="text-sm font-semibold text-slate-900 dark:text-white group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors truncate">
+                                {app.candidate_name}
+                              </h4>
+                              <p className="text-xs text-slate-500 dark:text-slate-400 truncate mt-0.5">
+                                {app.job_title}
+                              </p>
+                            </div>
+                          </div>
+
+                          {/* SaaS Property-Style Key Metrics Strip */}
+                          <div className="flex items-center gap-2 mt-2.5 text-xs text-slate-600 dark:text-slate-300">
+                            <div className="flex items-center gap-1 bg-slate-50 dark:bg-slate-800/80 px-2 py-0.5 rounded border border-slate-100 dark:border-slate-800 text-[11px]">
+                              <Briefcase className="w-3 h-3 text-slate-400 flex-shrink-0" />
+                              <span className="tabular-nums font-medium">
+                                {app.experience_years != null ? `${app.experience_years} yrs` : 'Entry'}
+                              </span>
+                            </div>
+                            <div className="flex items-center gap-1 bg-slate-50 dark:bg-slate-800/80 px-2 py-0.5 rounded border border-slate-100 dark:border-slate-800 text-[11px] truncate">
+                              <Calendar className="w-3 h-3 text-slate-400 flex-shrink-0" />
+                              <span className="tabular-nums truncate">
+                                {app.applied_at ? new Date(app.applied_at).toLocaleDateString(undefined, { month: 'short', day: 'numeric' }) : 'Recent'}
+                              </span>
+                            </div>
+                          </div>
+
+                          {/* Competency Chips */}
+                          {appSkills.length > 0 && (
+                            <div className="flex flex-wrap gap-1 mt-2">
+                              {appSkills.slice(0, 2).map((skill, sIdx) => (
+                                <span
+                                  key={sIdx}
+                                  className="px-1.5 py-0.5 text-[10px] font-medium rounded bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 border border-slate-200/60 dark:border-slate-700/60 truncate max-w-[110px]"
+                                >
+                                  {skill}
+                                </span>
+                              ))}
+                              {appSkills.length > 2 && (
+                                <span className="px-1.5 py-0.5 text-[10px] font-medium text-slate-400 bg-slate-50 dark:bg-slate-800/60 rounded">
+                                  +{appSkills.length - 2}
+                                </span>
+                              )}
+                            </div>
+                          )}
                         </div>
 
-                        <p className="text-xs text-slate-500 dark:text-slate-400 truncate mt-0.5">
-                          {app.job_title}
-                        </p>
+                        {/* Card Actions Bottom Row */}
+                        <div className="pt-2.5 border-t border-slate-100 dark:border-slate-800/80 flex items-center justify-between gap-1.5 mt-auto">
+                          <div className="flex items-center gap-1">
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setActiveCandidate(app);
+                              }}
+                              title="View Candidate Details"
+                              className="p-1 rounded-md text-slate-400 hover:text-indigo-600 dark:hover:text-indigo-400 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+                            >
+                              <FileText className="w-3.5 h-3.5" />
+                            </button>
 
-                        <div className="flex items-center gap-1.5 mt-2.5 text-xs text-slate-600 dark:text-slate-300">
-                          <Clock className="w-3.5 h-3.5 text-slate-400 flex-shrink-0" />
-                          <span className="tabular-nums font-medium">
-                            {app.experience_years != null ? app.experience_years : '0'} yrs exp
-                          </span>
-                        </div>
-
-                        {app.skills && app.skills.length > 0 && (
-                          <div className="flex flex-wrap gap-1.5 mt-2.5">
-                            {app.skills.slice(0, 3).map((skill, sIdx) => (
-                              <span
-                                key={sIdx}
-                                className="px-2 py-0.5 text-[10px] font-medium rounded-md bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 border border-slate-200/60 dark:border-slate-700/60 truncate max-w-[120px]"
+                            {stage.id !== 'REJECTED' && (
+                              <button
+                                type="button"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleOpenTransition(app, 'REJECTED');
+                                }}
+                                title="Reject Candidate"
+                                className="p-1 rounded-md text-slate-400 hover:text-rose-600 dark:hover:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/40 transition-colors"
                               >
-                                {skill}
-                              </span>
-                            ))}
-                            {app.skills.length > 3 && (
-                              <span className="px-1.5 py-0.5 text-[10px] font-medium text-slate-400">
-                                +{app.skills.length - 3}
-                              </span>
+                                <XCircle className="w-3.5 h-3.5" />
+                              </button>
                             )}
                           </div>
-                        )}
-                      </div>
 
-                      {/* Card Actions Bottom Row */}
-                      <div className="pt-2.5 border-t border-slate-100 dark:border-slate-800/80 flex items-center justify-between gap-2 mt-auto">
-                        <div className="flex items-center gap-1">
-                          <button
-                            type="button"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              setActiveCandidate(app);
-                            }}
-                            title="View Candidate Details"
-                            className="p-1 rounded-md text-slate-400 hover:text-indigo-600 dark:hover:text-indigo-400 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
-                          >
-                            <FileText className="w-3.5 h-3.5" />
-                          </button>
+                          {/* Stage Advance Buttons with consistent height & padding */}
+                          <div>
+                            {stage.id === 'APPLIED' && (
+                              <button
+                                type="button"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleOpenTransition(app, 'SCREENING');
+                                }}
+                                className="inline-flex items-center gap-1 px-2.5 py-1 bg-blue-50 dark:bg-blue-950/60 text-blue-700 dark:text-blue-300 hover:bg-blue-100 dark:hover:bg-blue-900/60 rounded-md text-[11px] font-semibold border border-blue-200/60 dark:border-blue-800/60 transition-colors whitespace-nowrap"
+                              >
+                                <span>Screen</span>
+                                <ArrowRight className="w-3 h-3" />
+                              </button>
+                            )}
 
-                          {stage.id !== 'REJECTED' && (
-                            <button
-                              type="button"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                handleOpenTransition(app, 'REJECTED');
-                              }}
-                              title="Reject Candidate"
-                              className="p-1 rounded-md text-slate-400 hover:text-rose-600 dark:hover:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/40 transition-colors"
-                            >
-                              <XCircle className="w-3.5 h-3.5" />
-                            </button>
-                          )}
-                        </div>
+                            {stage.id === 'SCREENING' && (
+                              <button
+                                type="button"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleOpenTransition(app, 'INTERVIEW');
+                                }}
+                                className="inline-flex items-center gap-1 px-2.5 py-1 bg-amber-50 dark:bg-amber-950/60 text-amber-700 dark:text-amber-300 hover:bg-amber-100 dark:hover:bg-amber-900/60 rounded-md text-[11px] font-semibold border border-amber-200/60 dark:border-amber-800/60 transition-colors whitespace-nowrap"
+                              >
+                                <span>Interview</span>
+                                <ArrowRight className="w-3 h-3" />
+                              </button>
+                            )}
 
-                        {/* Stage Advance Buttons with consistent height & padding */}
-                        <div>
-                          {stage.id === 'APPLIED' && (
-                            <button
-                              type="button"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                handleOpenTransition(app, 'SCREENING');
-                              }}
-                              className="inline-flex items-center gap-1 px-2.5 py-1 bg-blue-50 dark:bg-blue-950/60 text-blue-700 dark:text-blue-300 hover:bg-blue-100 dark:hover:bg-blue-900/60 rounded-md text-[11px] font-semibold border border-blue-200/60 dark:border-blue-800/60 transition-colors whitespace-nowrap"
-                            >
-                              <span>Screen</span>
-                              <ArrowRight className="w-3 h-3" />
-                            </button>
-                          )}
+                            {stage.id === 'INTERVIEW' && (
+                              <button
+                                type="button"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleOpenTransition(app, 'SELECTED');
+                                }}
+                                className="inline-flex items-center gap-1 px-2.5 py-1 bg-purple-50 dark:bg-purple-950/60 text-purple-700 dark:text-purple-300 hover:bg-purple-100 dark:hover:bg-purple-900/60 rounded-md text-[11px] font-semibold border border-purple-200/60 dark:border-purple-800/60 transition-colors whitespace-nowrap"
+                              >
+                                <span>Select</span>
+                                <ArrowRight className="w-3 h-3" />
+                              </button>
+                            )}
 
-                          {stage.id === 'SCREENING' && (
-                            <button
-                              type="button"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                handleOpenTransition(app, 'INTERVIEW');
-                              }}
-                              className="inline-flex items-center gap-1 px-2.5 py-1 bg-amber-50 dark:bg-amber-950/60 text-amber-700 dark:text-amber-300 hover:bg-amber-100 dark:hover:bg-amber-900/60 rounded-md text-[11px] font-semibold border border-amber-200/60 dark:border-amber-800/60 transition-colors whitespace-nowrap"
-                            >
-                              <span>Interview</span>
-                              <ArrowRight className="w-3 h-3" />
-                            </button>
-                          )}
-
-                          {stage.id === 'INTERVIEW' && (
-                            <button
-                              type="button"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                handleOpenTransition(app, 'SELECTED');
-                              }}
-                              className="inline-flex items-center gap-1 px-2.5 py-1 bg-purple-50 dark:bg-purple-950/60 text-purple-700 dark:text-purple-300 hover:bg-purple-100 dark:hover:bg-purple-900/60 rounded-md text-[11px] font-semibold border border-purple-200/60 dark:border-purple-800/60 transition-colors whitespace-nowrap"
-                            >
-                              <span>Select</span>
-                              <ArrowRight className="w-3 h-3" />
-                            </button>
-                          )}
-
-                          {stage.id === 'SELECTED' && (
-                            <button
-                              type="button"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                handleOpenTransition(app, 'OFFERED');
-                              }}
-                              className="inline-flex items-center gap-1 px-2.5 py-1 bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 hover:bg-emerald-100 dark:hover:bg-emerald-900/60 rounded-md text-[11px] font-semibold border border-emerald-200/60 dark:border-emerald-800/60 transition-colors whitespace-nowrap"
-                            >
-                              <span>Offer</span>
-                              <ArrowRight className="w-3 h-3" />
-                            </button>
-                          )}
+                            {stage.id === 'SELECTED' && (
+                              <button
+                                type="button"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleOpenTransition(app, 'OFFERED');
+                                }}
+                                className="inline-flex items-center gap-1 px-2.5 py-1 bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 hover:bg-emerald-100 dark:hover:bg-emerald-900/60 rounded-md text-[11px] font-semibold border border-emerald-200/60 dark:border-emerald-800/60 transition-colors whitespace-nowrap"
+                              >
+                                <span>Offer</span>
+                                <ArrowRight className="w-3 h-3" />
+                              </button>
+                            )}
+                          </div>
                         </div>
                       </div>
+                    );
+                  })}
+
+                  {stageApps.length === 0 && (
+                    <div className="py-8 text-center border border-dashed border-slate-200 dark:border-slate-800/80 rounded-xl">
+                      <p className="text-[11px] text-slate-400 font-medium">No candidates in {stage.label.toLowerCase()}</p>
                     </div>
-                  ))}
+                  )}
                 </div>
               </div>
             );
