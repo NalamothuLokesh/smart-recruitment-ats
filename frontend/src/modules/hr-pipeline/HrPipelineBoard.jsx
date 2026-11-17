@@ -18,32 +18,32 @@ const PIPELINE_STAGES = [
   {
     id: 'APPLIED',
     label: 'Applied',
-    color: 'border-slate-300 dark:border-slate-700 bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300'
+    dotColor: 'bg-slate-400 dark:bg-slate-400'
   },
   {
     id: 'SCREENING',
     label: 'Screening',
-    color: 'border-blue-200 dark:border-blue-800 bg-blue-50 dark:bg-blue-950/60 text-blue-700 dark:text-blue-300'
+    dotColor: 'bg-blue-500'
   },
   {
     id: 'INTERVIEW',
     label: 'Interview',
-    color: 'border-amber-200 dark:border-amber-800 bg-amber-50 dark:bg-amber-950/60 text-amber-700 dark:text-amber-300'
+    dotColor: 'bg-amber-500'
   },
   {
     id: 'SELECTED',
     label: 'Selected',
-    color: 'border-purple-200 dark:border-purple-800 bg-purple-50 dark:bg-purple-950/60 text-purple-700 dark:text-purple-300'
+    dotColor: 'bg-purple-500'
   },
   {
     id: 'OFFERED',
     label: 'Offered',
-    color: 'border-emerald-200 dark:border-emerald-800 bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300'
+    dotColor: 'bg-emerald-500'
   },
   {
     id: 'REJECTED',
     label: 'Rejected',
-    color: 'border-rose-200 dark:border-rose-800 bg-rose-50 dark:bg-rose-950/60 text-rose-700 dark:text-rose-300'
+    dotColor: 'bg-rose-500'
   }
 ];
 
@@ -270,19 +270,19 @@ export const HrPipelineBoard = () => {
             return (
               <div
                 key={stage.id}
-                className="w-[280px] sm:w-[290px] xl:w-auto bg-slate-100/70 dark:bg-[#161b22] rounded-2xl p-3 border border-slate-200 dark:border-[#30363d] flex flex-col min-h-[460px] shadow-2xs transition-all"
+                className="w-[280px] sm:w-[290px] xl:w-auto flex flex-col min-h-[420px] transition-all"
               >
-                {/* Column Header */}
-                <div className="flex items-center justify-between pb-3 mb-3 border-b border-slate-200 dark:border-[#30363d] flex-shrink-0">
-                  <span
-                    className={`text-[11px] font-bold uppercase tracking-wider px-2.5 py-0.5 rounded-md border ${stage.color}`}
-                  >
-                    {stage.label}
-                  </span>
-
-                  <span className="text-xs font-bold tabular-nums text-slate-500 dark:text-slate-400 bg-white dark:bg-[#1c2128] px-2.5 py-0.5 rounded-full border border-slate-200 dark:border-slate-700 shadow-2xs">
-                    {stageApps.length}
-                  </span>
+                {/* Column Header - Frameless Linear Style with Status Dot */}
+                <div className="flex items-center justify-between pb-3 mb-3 border-b border-slate-200/60 dark:border-slate-800/80 flex-shrink-0">
+                  <div className="flex items-center gap-2">
+                    <span className={`w-2.5 h-2.5 rounded-full ${stage.dotColor} shadow-2xs flex-shrink-0`} />
+                    <span className="text-xs font-bold uppercase tracking-wider text-slate-700 dark:text-slate-300">
+                      {stage.label}
+                    </span>
+                    <span className="text-xs font-semibold tabular-nums text-slate-400 dark:text-slate-500 bg-slate-100 dark:bg-slate-800/80 px-2 py-0.5 rounded-full">
+                      {stageApps.length}
+                    </span>
+                  </div>
                 </div>
 
                 {/* Candidate Cards List - Clean Natural Flow */}
@@ -298,7 +298,7 @@ export const HrPipelineBoard = () => {
                       <div
                         key={app.id}
                         onClick={() => setActiveCandidate(app)}
-                        className="group bg-white dark:bg-[#1c2128] rounded-xl p-3.5 border border-slate-200 dark:border-[#30363d] shadow-2xs hover:shadow-md hover:border-indigo-400 dark:hover:border-indigo-500 hover:-translate-y-0.5 transition-all duration-150 cursor-pointer flex flex-col justify-between gap-2.5"
+                        className="group bg-white dark:bg-[#161b22] rounded-xl p-3.5 border border-slate-200/90 dark:border-[#30363d] shadow-xs hover:shadow-md hover:border-indigo-400 dark:hover:border-indigo-500 hover:-translate-y-0.5 transition-all duration-150 cursor-pointer flex flex-col justify-between gap-2.5"
                       >
                         <div>
                           {/* Candidate Avatar Initials + Name + Title */}
@@ -446,8 +446,8 @@ export const HrPipelineBoard = () => {
                   })}
 
                   {stageApps.length === 0 && (
-                    <div className="py-8 text-center border border-dashed border-slate-200 dark:border-slate-800/80 rounded-xl">
-                      <p className="text-[11px] text-slate-400 font-medium">No candidates in {stage.label.toLowerCase()}</p>
+                    <div className="py-8 text-center border border-dashed border-slate-200/70 dark:border-slate-800/60 rounded-xl bg-slate-50/40 dark:bg-white/[0.01]">
+                      <p className="text-[11px] text-slate-400 dark:text-slate-500 font-medium">No candidates in {stage.label.toLowerCase()}</p>
                     </div>
                   )}
                 </div>
