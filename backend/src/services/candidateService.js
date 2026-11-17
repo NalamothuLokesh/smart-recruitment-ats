@@ -1,6 +1,8 @@
 const fs = require('fs');
 const path = require('path');
+const { randomUUID } = require('crypto');
 const db = require('../config/db');
+const config = require('../config/env');
 
 class CandidateService {
   /**
@@ -148,6 +150,86 @@ class CandidateService {
     }
 
     return resume;
+  }
+
+  /**
+   * Delete a candidate's own resume and its private stored file.
+   * The file is staged until the database transaction commits so a failed
+   * database operation can restore the original file.
+   */
+  async deleteResume(userId, resumeId) {
+    const connection = await db.pool.getConnection();
+    let originalPath = null;
+    let stagedPath = null;
+    let committed = false;
+
+    try {
+      await connection.beginTransaction();
+      const [rows] = await connection.query(
+        'SELECT id, file_path FROM resumes WHERE id = ? AND candidate_id = ? FOR UPDATE',
+        [resumeId, userId]
+      );
+
+      if (rows.length === 0) {
+        const error = new Error('Resume not found.');
+        error.statusCode = 404;
+        throw error;
+      }
+
+      originalPath = path.resolve(rows[0].file_path);
+      const uploadRoot = path.resolve(config.UPLOAD_DIR);
+      const relativePath = path.relative(uploadRoot, originalPath);
+      if (!relativePath || relativePath.startsWith('..') || path.isAbsolute(relativePath)) {
+        const error = new Error('Resume file path is outside the configured upload directory.');
+        error.statusCode = 500;
+        throw error;
+      }
+
+      try {
+        await fs.promises.access(originalPath, fs.constants.F_OK);
+        stagedPath = `${originalPath}.deleting-${randomUUID()}`;
+        await fs.promises.rename(originalPath, stagedPath);
+      } catch (error) {
+        if (error.code !== 'ENOENT') throw error;
+        stagedPath = null;
+      }
+
+      await connection.query(
+        'DELETE FROM resumes WHERE id = ? AND candidate_id = ?',
+        [resumeId, userId]
+      );
+      await connection.commit();
+      committed = true;
+    } catch (error) {
+      if (!committed) {
+        try {
+          await connection.rollback();
+        } catch (rollbackError) {
+          console.error('Failed to roll back resume deletion:', rollbackError);
+        }
+      }
+      if (stagedPath) {
+        try {
+          await fs.promises.rename(stagedPath, originalPath);
+        } catch (restoreError) {
+          console.error('Failed to restore staged resume file:', restoreError);
+        }
+      }
+      throw error;
+    } finally {
+      connection.release();
+    }
+
+    if (stagedPath) {
+      try {
+        await fs.promises.unlink(stagedPath);
+      } catch (cleanupError) {
+        // The resume record is already deleted; log cleanup failures for ops.
+        console.error('Failed to remove staged resume file:', cleanupError);
+      }
+    }
+
+    return { id: Number(resumeId) };
   }
 }
 

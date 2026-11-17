@@ -2,7 +2,7 @@
 -- Smart Recruitment & Applicant Tracking System (ATS)
 -- Database Seed Data: seed_data.sql
 -- Default test password for all synthetic accounts: Password123!
--- (Bcrypt hash: $2a$10$wKq9yF1uIe4dK3I8y4/Ue.v8bT8n4yR9vB4wK7uX0kE0zG5y2uM6O)
+-- (Bcrypt hash: $2a$10$71aUOsV7eJiyzY9txjjvCuf/hkMoigTQr67.Ftn3EHeJBHR.UAtQK)
 -- ============================================================================
 
 SET FOREIGN_KEY_CHECKS = 0;

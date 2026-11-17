@@ -64,5 +64,18 @@ router.get(
   candidateController.downloadResume
 );
 
+/**
+ * @route   DELETE /api/v1/candidates/resume/:id
+ * @desc    Delete an owned resume and its private stored file
+ * @access  CANDIDATE (owner only)
+ */
+router.delete(
+  '/resume/:id',
+  requireAuth,
+  requireRole('CANDIDATE'),
+  [param('id').isInt().withMessage('Resume ID must be an integer.'), validate],
+  candidateController.deleteResume
+);
+
 module.exports = router;
 

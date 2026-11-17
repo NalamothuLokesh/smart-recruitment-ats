@@ -29,6 +29,19 @@ class ApplicationController {
     }
   }
 
+  async deleteMyApplication(req, res, next) {
+    try {
+      const result = await applicationService.deleteMyApplication(req.user.id, req.params.id);
+      res.status(200).json({
+        success: true,
+        message: 'Application deleted successfully.',
+        data: result
+      });
+    } catch (error) {
+      next(error);
+    }
+  }
+
   async listApplications(req, res, next) {
     try {
       const { jobId, stage, search, page, limit } = req.query;
