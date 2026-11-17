@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useLocation } from 'react-router-dom';
 import { applicationsApi, candidateApi, offersApi } from '../../api/client';
 import { useAuth } from '../../context/AuthContext';
 import { 
@@ -38,11 +39,20 @@ import {
  */
 export const CandidateDashboard = () => {
   const { user } = useAuth();
+  const location = useLocation();
   const [applications, setApplications] = useState([]);
   const [profile, setProfile] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState('');
   const [uploading, setUploading] = useState(false);
-  const [feedback, setFeedback] = useState('');
+  const [uploadError, setUploadError] = useState('');
+  const [downloadError, setDownloadError] = useState('');
+  const [downloadingResumeId, setDownloadingResumeId] = useState(null);
+  const [profileSaving, setProfileSaving] = useState(false);
+  const [profileSaveError, setProfileSaveError] = useState('');
+  const [feedback, setFeedback] = useState(() =>
+    location.state?.registrationSuccess ? 'Your candidate account is ready. Welcome to Smart ATS.' : ''
+  );
   const [activeOffer, setActiveOffer] = useState(null);
 
   // Profile Edit State
@@ -54,9 +64,20 @@ export const CandidateDashboard = () => {
     linkedinUrl: ''
   });
 
+  const handleCancelProfileEdit = () => {
+    setProfileForm({
+      phone: profile?.phone || '',
+      experienceYears: profile?.experienceYears ?? 0,
+      skills: profile?.skills?.join(', ') || '',
+      linkedinUrl: profile?.linkedinUrl || ''
+    });
+    setIsEditingProfile(false);
+  };
+
   const loadData = async () => {
     try {
       setLoading(true);
+      setLoadError('');
       const [appRes, profRes] = await Promise.all([
         applicationsApi.getMyApplications(),
         candidateApi.getProfile()
@@ -73,6 +94,7 @@ export const CandidateDashboard = () => {
       }
     } catch (err) {
       console.error(err);
+      setLoadError(err.message || 'Could not load your candidate dashboard.');
     } finally {
       setLoading(false);
     }
@@ -85,39 +107,55 @@ export const CandidateDashboard = () => {
   const handleResumeUpload = async (e) => {
     const file = e.target.files?.[0];
     if (!file) return;
+    const input = e.currentTarget;
+    const allowedExtensions = /\.(pdf|doc|docx)$/i;
 
+    setUploadError('');
+    setFeedback('');
+
+    if (!allowedExtensions.test(file.name)) {
+      setUploadError('Choose a PDF, DOC, or DOCX file.');
+      input.value = '';
+      return;
+    }
     if (file.size > 5 * 1024 * 1024) {
-      alert('File exceeds 5MB size limit.');
+      setUploadError('File exceeds the 5MB size limit.');
+      input.value = '';
       return;
     }
 
     try {
       setUploading(true);
       await candidateApi.uploadResume(file);
-      setFeedback('Resume uploaded successfully to secure private storage.');
-      loadData();
+      await loadData();
+      setFeedback('Resume uploaded successfully.');
     } catch (err) {
-      alert(err.message);
+      setUploadError(err.message || 'Could not upload your resume. Please try again.');
     } finally {
       setUploading(false);
+      input.value = '';
     }
   };
 
   const handleProfileUpdate = async (e) => {
     e.preventDefault();
+    setProfileSaving(true);
+    setProfileSaveError('');
     try {
       const skillsArray = profileForm.skills.split(',').map(s => s.trim()).filter(Boolean);
       await candidateApi.updateProfile({
         phone: profileForm.phone,
         experienceYears: parseFloat(profileForm.experienceYears) || 0,
         skills: skillsArray,
-        linkedinUrl: profileForm.linkedinUrl
+        linkedinUrl: profileForm.linkedinUrl.trim() || undefined
       });
+      await loadData();
       setFeedback('Profile successfully updated.');
       setIsEditingProfile(false);
-      loadData();
     } catch (err) {
-      alert(err.message);
+      setProfileSaveError(err.message || 'Could not save your profile. Please try again.');
+    } finally {
+      setProfileSaving(false);
     }
   };
 
@@ -131,6 +169,40 @@ export const CandidateDashboard = () => {
       alert(err.message);
     }
   };
+
+  const handleResumeDownload = async (resume) => {
+    setDownloadError('');
+    setDownloadingResumeId(resume.id);
+    try {
+      await candidateApi.downloadResume(resume.id, resume.original_filename);
+    } catch (err) {
+      setDownloadError(err.message || 'Could not download your resume. Please try again.');
+    } finally {
+      setDownloadingResumeId(null);
+    }
+  };
+
+  if (loading && !profile) {
+    return (
+      <div className="min-h-[60vh] flex flex-col items-center justify-center gap-3 text-slate-500">
+        <div className="h-9 w-9 animate-spin rounded-full border-4 border-indigo-100 border-t-indigo-600" />
+        <p className="text-sm font-medium">Loading your candidate dashboard...</p>
+      </div>
+    );
+  }
+
+  if (loadError && !profile) {
+    return (
+      <div className="max-w-xl mx-auto my-16 rounded-xl border border-rose-200 bg-white p-8 text-center shadow-sm">
+        <AlertCircle className="mx-auto mb-3 h-8 w-8 text-rose-600" />
+        <h2 className="text-lg font-bold text-slate-900">Dashboard couldn’t load</h2>
+        <p role="alert" className="mt-2 text-sm text-slate-600">{loadError}</p>
+        <button onClick={loadData} className="mt-5 rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-white hover:bg-indigo-700">
+          Try again
+        </button>
+      </div>
+    );
+  }
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8">
@@ -148,17 +220,18 @@ export const CandidateDashboard = () => {
         <div className="flex items-center gap-3">
           <label className="cursor-pointer px-4 py-2 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 rounded-lg text-xs font-semibold border border-indigo-200 flex items-center gap-2 transition-colors">
             <Upload className="w-4 h-4 text-indigo-600" />
-            {uploading ? 'Encrypting & Uploading...' : 'Upload New Resume'}
+            {uploading ? 'Uploading...' : 'Upload New Resume'}
             <input
               type="file"
               accept=".pdf,.doc,.docx"
               onChange={handleResumeUpload}
+              disabled={uploading}
               className="hidden"
             />
           </label>
 
           <button
-            onClick={() => setIsEditingProfile(!isEditingProfile)}
+            onClick={() => isEditingProfile ? handleCancelProfileEdit() : setIsEditingProfile(true)}
             className="px-4 py-2 border border-slate-300 hover:bg-slate-50 text-slate-700 rounded-lg text-xs font-medium"
           >
             {isEditingProfile ? 'Close Editor' : 'Edit Profile'}
@@ -167,7 +240,7 @@ export const CandidateDashboard = () => {
       </div>
 
       {feedback && (
-        <div className="p-3 bg-emerald-50 border border-emerald-200 text-emerald-800 text-sm rounded-lg flex justify-between items-center">
+        <div className="p-3 bg-emerald-50 border border-emerald-200 text-emerald-800 text-sm rounded-lg flex justify-between items-center" role="status" aria-live="polite">
           <span>{feedback}</span>
           <button onClick={() => setFeedback('')} className="text-xs font-semibold hover:underline">Dismiss</button>
         </div>
@@ -178,6 +251,11 @@ export const CandidateDashboard = () => {
         <div className="p-6 bg-white border border-indigo-200 rounded-xl shadow-sm">
           <h3 className="font-bold text-slate-900 mb-3 text-base">Edit Candidate Profile</h3>
           <form onSubmit={handleProfileUpdate} className="space-y-4">
+            {profileSaveError && (
+              <p role="alert" className="rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-sm text-rose-700">
+                {profileSaveError}
+              </p>
+            )}
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
               <div>
                 <label className="block text-xs font-semibold text-slate-700 mb-1">Phone Number</label>
@@ -195,6 +273,7 @@ export const CandidateDashboard = () => {
                 <input
                   type="number"
                   step="0.5"
+                  min="0"
                   value={profileForm.experienceYears}
                   onChange={(e) => setProfileForm({ ...profileForm, experienceYears: e.target.value })}
                   className="w-full px-3 py-2 border border-slate-300 rounded-lg text-xs outline-none focus:ring-2 focus:ring-indigo-500"
@@ -226,16 +305,18 @@ export const CandidateDashboard = () => {
             <div className="flex justify-end gap-2">
               <button
                 type="button"
-                onClick={() => setIsEditingProfile(false)}
+                onClick={handleCancelProfileEdit}
+                disabled={profileSaving}
                 className="px-3 py-1.5 border border-slate-300 rounded-lg text-xs text-slate-700"
               >
                 Cancel
               </button>
               <button
                 type="submit"
-                className="px-4 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-xs font-semibold"
+                disabled={profileSaving}
+                className="px-4 py-1.5 bg-indigo-600 hover:bg-indigo-700 disabled:cursor-not-allowed disabled:opacity-60 text-white rounded-lg text-xs font-semibold"
               >
-                Save Changes
+                {profileSaving ? 'Saving...' : 'Save Changes'}
               </button>
             </div>
           </form>
@@ -329,6 +410,53 @@ export const CandidateDashboard = () => {
                     ))}
                   </div>
                 </div>
+
+                {/* Candidate interview schedule */}
+                <div>
+                  <h4 className="text-xs font-bold uppercase tracking-wider text-slate-500 mb-2 flex items-center gap-2">
+                    <Calendar className="w-4 h-4 text-indigo-600" />
+                    Interview Schedule
+                  </h4>
+                  {app.interviews?.length ? (
+                    <div className="space-y-2">
+                      {app.interviews.map((interview) => (
+                        <div
+                          key={interview.id}
+                          className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 rounded-lg border border-slate-200 bg-slate-50 p-3"
+                        >
+                          <div className="min-w-0">
+                            <div className="flex flex-wrap items-center gap-2 text-xs font-semibold text-slate-800">
+                              <Calendar className="w-3.5 h-3.5 text-slate-500" />
+                              <span>{new Date(interview.scheduled_at).toLocaleString()}</span>
+                              <span className="rounded-full bg-indigo-100 px-2 py-0.5 text-[10px] font-bold uppercase text-indigo-800">
+                                {interview.status}
+                              </span>
+                            </div>
+                            <div className="mt-1 flex items-center gap-1.5 text-[11px] text-slate-500">
+                              <Clock className="w-3 h-3" />
+                              {interview.duration_minutes} minutes
+                            </div>
+                          </div>
+                          {interview.meeting_link && ['SCHEDULED', 'RESCHEDULED'].includes(interview.status) && (
+                            <a
+                              href={interview.meeting_link}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="inline-flex shrink-0 items-center justify-center gap-1.5 rounded-lg border border-indigo-200 bg-white px-3 py-2 text-xs font-semibold text-indigo-700 hover:bg-indigo-50"
+                            >
+                              Join interview
+                              <ArrowRight className="w-3.5 h-3.5" />
+                            </a>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <p className="rounded-lg border border-dashed border-slate-200 px-3 py-2 text-xs text-slate-500">
+                      No interview scheduled yet.
+                    </p>
+                  )}
+                </div>
               </div>
             ))
           )}
@@ -343,8 +471,19 @@ export const CandidateDashboard = () => {
 
           <div className="bg-white p-6 rounded-xl border border-slate-200 shadow-sm space-y-3">
             <p className="text-xs text-slate-500 leading-relaxed">
-              Your uploaded resumes are stored privately in encrypted server storage and never exposed publicly.
+              Your uploaded resumes are stored privately and are only available through your account.
             </p>
+
+            {uploadError && (
+              <p role="alert" className="rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-sm text-rose-700">
+                {uploadError}
+              </p>
+            )}
+            {downloadError && (
+              <p role="alert" className="rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-sm text-rose-700">
+                {downloadError}
+              </p>
+            )}
 
             {profile?.resumes?.map((resume) => (
               <div
@@ -359,11 +498,17 @@ export const CandidateDashboard = () => {
                 </div>
 
                 <button
-                  onClick={() => candidateApi.downloadResume(resume.id, resume.original_filename)}
-                  className="p-1.5 text-indigo-600 hover:bg-indigo-50 rounded border border-indigo-200"
+                  onClick={() => handleResumeDownload(resume)}
+                  disabled={downloadingResumeId !== null}
+                  className="p-1.5 text-indigo-600 hover:bg-indigo-50 disabled:cursor-wait disabled:opacity-60 rounded border border-indigo-200"
                   title="Download File"
+                  aria-label={`Download ${resume.original_filename}`}
                 >
-                  <Download className="w-4 h-4" />
+                  {downloadingResumeId === resume.id ? (
+                    <span className="text-[10px] font-semibold">...</span>
+                  ) : (
+                    <Download className="w-4 h-4" />
+                  )}
                 </button>
               </div>
             ))}

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { jobsApi, applicationsApi, candidateApi } from '../../api/client';
 import { useAuth } from '../../context/AuthContext';
 import { Briefcase, MapPin, Search, CheckCircle2, AlertCircle, ArrowUpRight, Upload } from 'lucide-react';
@@ -25,25 +25,36 @@ import { Briefcase, MapPin, Search, CheckCircle2, AlertCircle, ArrowUpRight, Upl
 export const PublicJobBoard = () => {
   const [jobs, setJobs] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [jobsError, setJobsError] = useState('');
   const [search, setSearch] = useState('');
   const [department, setDepartment] = useState('');
   const [selectedJob, setSelectedJob] = useState(null);
   const [candidateProfile, setCandidateProfile] = useState(null);
   const [applyingJobId, setApplyingJobId] = useState(null);
+  const [submittingApplication, setSubmittingApplication] = useState(false);
   const [applyResumeId, setApplyResumeId] = useState('');
   const [applySuccess, setApplySuccess] = useState('');
   const [applyError, setApplyError] = useState('');
 
   const { isAuthenticated, isCandidate } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
 
   const loadJobs = async () => {
     try {
       setLoading(true);
+      setJobsError('');
       const res = await jobsApi.listJobs({ search, department, status: 'PUBLISHED' });
-      setJobs(res.data || []);
+      const nextJobs = res.data || [];
+      setJobs(nextJobs);
+      setSelectedJob((current) => current
+        ? nextJobs.find((job) => String(job.id) === String(current.id)) || null
+        : null);
     } catch (err) {
       console.error(err);
+      setJobs([]);
+      setSelectedJob(null);
+      setJobsError(err.message || 'Could not load job openings. Please try again.');
     } finally {
       setLoading(false);
     }
@@ -65,9 +76,27 @@ export const PublicJobBoard = () => {
     }
   }, [isAuthenticated, isCandidate]);
 
+  useEffect(() => {
+    const requestedJobId = new URLSearchParams(location.search).get('applyJob');
+    if (!requestedJobId || !isAuthenticated || loading) return;
+
+    if (isCandidate) {
+      const requestedJob = jobs.find((job) => String(job.id) === requestedJobId);
+      if (requestedJob) {
+        setSelectedJob(requestedJob);
+        setApplyingJobId(requestedJob.id);
+        setApplyError('');
+        setApplySuccess('');
+      }
+    }
+    navigate('/jobs', { replace: true });
+  }, [isAuthenticated, isCandidate, jobs, loading, location.search, navigate]);
+
   const handleApplyClick = (job) => {
     if (!isAuthenticated) {
-      navigate('/login', { state: { from: { pathname: '/jobs' } } });
+      navigate('/login', {
+        state: { from: { pathname: '/jobs', search: `?applyJob=${encodeURIComponent(job.id)}` } }
+      });
       return;
     }
     if (!isCandidate) {
@@ -82,7 +111,9 @@ export const PublicJobBoard = () => {
 
   const handleApplySubmit = async (e) => {
     e.preventDefault();
+    if (submittingApplication) return;
     setApplyError('');
+    setSubmittingApplication(true);
     try {
       await applicationsApi.apply({
         jobId: applyingJobId,
@@ -95,6 +126,8 @@ export const PublicJobBoard = () => {
       }, 3000);
     } catch (err) {
       setApplyError(err.message);
+    } finally {
+      setSubmittingApplication(false);
     }
   };
 
@@ -140,7 +173,7 @@ export const PublicJobBoard = () => {
         {/* Left Column: Job Cards List */}
         <div className="md:col-span-2 space-y-4">
           <div className="flex justify-between items-center text-sm font-medium text-slate-500 pb-2">
-            <span>Showing {jobs.length} published positions</span>
+            <span>{loading ? 'Loading openings...' : `Showing ${jobs.length} published positions`}</span>
             <select
               value={department}
               onChange={(e) => setDepartment(e.target.value)}
@@ -153,7 +186,34 @@ export const PublicJobBoard = () => {
             </select>
           </div>
 
-          {jobs.map((job) => (
+          {loading ? (
+            <div role="status" className="rounded-xl border border-slate-200 bg-white p-10 text-center shadow-sm">
+              <div className="mx-auto mb-3 h-8 w-8 animate-spin rounded-full border-4 border-indigo-100 border-t-indigo-600" />
+              <p className="text-sm font-medium text-slate-600">Loading open positions...</p>
+            </div>
+          ) : jobsError ? (
+            <div role="alert" className="rounded-xl border border-rose-200 bg-rose-50 p-6 text-center">
+              <AlertCircle className="mx-auto mb-2 h-6 w-6 text-rose-600" />
+              <p className="text-sm text-rose-800">{jobsError}</p>
+              <button
+                type="button"
+                onClick={loadJobs}
+                className="mt-3 rounded-lg bg-indigo-600 px-4 py-2 text-xs font-semibold text-white hover:bg-indigo-700"
+              >
+                Try again
+              </button>
+            </div>
+          ) : jobs.length === 0 ? (
+            <div className="rounded-xl border border-dashed border-slate-300 bg-white p-8 text-center">
+              <Briefcase className="mx-auto mb-3 h-7 w-7 text-slate-400" />
+              <h3 className="text-sm font-semibold text-slate-800">No open positions found</h3>
+              <p className="mt-1 text-xs text-slate-500">
+                {search || department
+                  ? 'Try changing your search or department filter.'
+                  : 'There are no published positions right now. Please check back soon.'}
+              </p>
+            </div>
+          ) : jobs.map((job) => (
             <div
               key={job.id}
               onClick={() => setSelectedJob(job)}
@@ -248,7 +308,7 @@ export const PublicJobBoard = () => {
                 <span>{applySuccess}</span>
               </div>
             ) : (
-              <form onSubmit={handleApplySubmit} className="space-y-4">
+              <form onSubmit={handleApplySubmit} className="space-y-4" aria-busy={submittingApplication}>
                 {applyError && (
                   <div className="p-3 bg-rose-50 border border-rose-200 text-rose-700 text-xs rounded-lg flex items-center gap-2">
                     <AlertCircle className="w-4 h-4 flex-shrink-0" />
@@ -264,6 +324,7 @@ export const PublicJobBoard = () => {
                     <select
                       value={applyResumeId}
                       onChange={(e) => setApplyResumeId(e.target.value)}
+                      disabled={submittingApplication}
                       className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm bg-white"
                     >
                       {candidateProfile.resumes.map((r) => (
@@ -283,15 +344,17 @@ export const PublicJobBoard = () => {
                   <button
                     type="button"
                     onClick={() => setApplyingJobId(null)}
-                    className="px-4 py-2 border border-slate-300 rounded-lg text-xs font-medium text-slate-700 hover:bg-slate-50"
+                    disabled={submittingApplication}
+                    className="px-4 py-2 border border-slate-300 rounded-lg text-xs font-medium text-slate-700 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60"
                   >
                     Cancel
                   </button>
                   <button
                     type="submit"
-                    className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-xs font-semibold shadow-sm"
+                    disabled={submittingApplication}
+                    className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 disabled:cursor-not-allowed disabled:opacity-60 text-white rounded-lg text-xs font-semibold shadow-sm"
                   >
-                    Confirm & Submit Application
+                    {submittingApplication ? 'Submitting...' : 'Confirm & Submit Application'}
                   </button>
                 </div>
               </form>
