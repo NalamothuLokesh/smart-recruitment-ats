@@ -1,36 +1,218 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { adminApi } from '../../api/client';
-import { ShieldCheck, UserPlus, Users, Activity, CheckCircle2, XCircle, Search, RefreshCw, KeyRound } from 'lucide-react';
+import {
+  ShieldCheck,
+  Users,
+  UserCheck,
+  UserX,
+  Activity,
+  UserPlus,
+  RefreshCw,
+  Search,
+  CheckCircle2,
+  XCircle,
+  Clock,
+  Sparkles,
+  Database,
+  Wifi,
+  WifiOff,
+  AlertCircle,
+  Briefcase,
+  KeyRound
+} from 'lucide-react';
+import UserManagement from './UserManagement';
+import './admin.css';
 
-/**
- * ============================================================================
- * MODULE: AdminDashboard.jsx
- * ASSIGNED TO: // TODO: [Teammate 4: Administration, Security & Analytics Engineer]
- * PAIR MODULE: src/modules/analytics/HiringAnalyticsPage.jsx
- * 
- * RESPONSIBILITIES:
- * 1. User Directory management (search, filter by role).
- * 2. Role alteration: Change user role between ADMIN, HR, CANDIDATE.
- * 3. User activation / deactivation toggling.
- * 4. Provisioning new internal HR or Admin accounts.
- * 5. System-wide audit log timeline table.
- * 
- * PRE-WIRED API HOOKS AVAILABLE:
- * - adminApi.getUsers({ page, limit, role, search })
- * - adminApi.createUser({ fullName, email, password, role })
- * - adminApi.updateUserRole(userId, newRole)
- * - adminApi.updateUserStatus(userId, isActive)
- * - adminApi.getAuditLogs({ page, limit })
- * ============================================================================
- */
+// Baseline fallback dataset for offline/mock development mode
+const SAMPLE_USERS = [
+  {
+    id: 1,
+    org_id: 1,
+    full_name: 'Sarah Connor',
+    email: 'admin@novatech.io',
+    role: 'ADMIN',
+    is_active: true,
+    created_at: '2026-01-02T09:00:00.000Z',
+    org_name: 'NovaTech Innovations Inc.'
+  },
+  {
+    id: 2,
+    org_id: 1,
+    full_name: 'David Miller',
+    email: 'hr@novatech.io',
+    role: 'HR',
+    is_active: true,
+    created_at: '2026-01-03T09:30:00.000Z',
+    org_name: 'NovaTech Innovations Inc.'
+  },
+  {
+    id: 3,
+    org_id: 1,
+    full_name: 'Alex Rivera',
+    email: 'alex.rivera@example.com',
+    role: 'CANDIDATE',
+    is_active: true,
+    created_at: '2026-01-10T10:15:00.000Z',
+    org_name: 'NovaTech Innovations Inc.'
+  },
+  {
+    id: 4,
+    org_id: 1,
+    full_name: 'Elena Rostova',
+    email: 'elena.rostova@example.com',
+    role: 'CANDIDATE',
+    is_active: true,
+    created_at: '2026-01-11T11:45:00.000Z',
+    org_name: 'NovaTech Innovations Inc.'
+  },
+  {
+    id: 5,
+    org_id: 1,
+    full_name: 'Marcus Chen',
+    email: 'marcus.chen@example.com',
+    role: 'CANDIDATE',
+    is_active: true,
+    created_at: '2026-01-12T14:20:00.000Z',
+    org_name: 'NovaTech Innovations Inc.'
+  },
+  {
+    id: 6,
+    org_id: 1,
+    full_name: 'Priya Sharma',
+    email: 'priya.sharma@example.com',
+    role: 'CANDIDATE',
+    is_active: true,
+    created_at: '2026-01-13T16:00:00.000Z',
+    org_name: 'NovaTech Innovations Inc.'
+  },
+  {
+    id: 7,
+    org_id: 1,
+    full_name: 'Jordan Hayes',
+    email: 'jordan.hayes@novatech.io',
+    role: 'HR',
+    is_active: true,
+    created_at: '2026-01-18T11:20:00.000Z',
+    org_name: 'NovaTech Innovations Inc.'
+  },
+  {
+    id: 8,
+    org_id: 1,
+    full_name: 'Morgan Vance',
+    email: 'morgan.vance@novatech.io',
+    role: 'ADMIN',
+    is_active: true,
+    created_at: '2026-01-20T13:45:00.000Z',
+    org_name: 'NovaTech Innovations Inc.'
+  },
+  {
+    id: 9,
+    org_id: 1,
+    full_name: 'Liam Gallagher',
+    email: 'liam.g@example.com',
+    role: 'CANDIDATE',
+    is_active: false,
+    created_at: '2026-01-22T08:30:00.000Z',
+    org_name: 'NovaTech Innovations Inc.'
+  },
+  {
+    id: 10,
+    org_id: 1,
+    full_name: 'Sophia Kim',
+    email: 'sophia.kim@example.com',
+    role: 'CANDIDATE',
+    is_active: true,
+    created_at: '2026-01-25T15:10:00.000Z',
+    org_name: 'NovaTech Innovations Inc.'
+  },
+  {
+    id: 11,
+    org_id: 1,
+    full_name: 'Tariq Al-Mansoor',
+    email: 'tariq.m@novatech.io',
+    role: 'HR',
+    is_active: false,
+    created_at: '2026-02-01T10:00:00.000Z',
+    org_name: 'NovaTech Innovations Inc.'
+  },
+  {
+    id: 12,
+    org_id: 1,
+    full_name: 'Rachel Green',
+    email: 'rachel.green@example.com',
+    role: 'CANDIDATE',
+    is_active: true,
+    created_at: '2026-02-05T14:15:00.000Z',
+    org_name: 'NovaTech Innovations Inc.'
+  }
+];
+
+const SAMPLE_AUDIT_LOGS = [
+  {
+    id: 101,
+    changed_at: '2026-02-10T14:32:00Z',
+    candidate_name: 'Alex Rivera',
+    job_title: 'Senior Full-Stack Engineer',
+    from_stage: 'INTERVIEW',
+    to_stage: 'SELECTED',
+    changed_by_name: 'David Miller',
+    changed_by_role: 'HR',
+    notes: 'Candidate completed final technical round with strong architecture scorecard.'
+  },
+  {
+    id: 102,
+    changed_at: '2026-02-09T11:15:00Z',
+    candidate_name: 'Elena Rostova',
+    job_title: 'Lead Cloud DevOps Architect',
+    from_stage: 'APPLIED',
+    to_stage: 'SCREENING',
+    changed_by_name: 'David Miller',
+    changed_by_role: 'HR',
+    notes: 'Initial resume screening passed. Kubernetes & Terraform experience verified.'
+  },
+  {
+    id: 103,
+    changed_at: '2026-02-08T16:45:00Z',
+    candidate_name: 'Sarah Connor',
+    job_title: 'System Access Control',
+    from_stage: 'PROVISION',
+    to_stage: 'ROLE_ASSIGNED',
+    changed_by_name: 'Sarah Connor',
+    changed_by_role: 'ADMIN',
+    notes: 'Elevated David Miller privileges to HR Recruiter.'
+  },
+  {
+    id: 104,
+    changed_at: '2026-02-07T09:20:00Z',
+    candidate_name: 'Marcus Chen',
+    job_title: 'Product Design Lead',
+    from_stage: 'SCREENING',
+    to_stage: 'INTERVIEW',
+    changed_by_name: 'Jordan Hayes',
+    changed_by_role: 'HR',
+    notes: 'Portfolio review complete. Scheduled for round 1 behavioral.'
+  },
+  {
+    id: 105,
+    changed_at: '2026-02-05T17:00:00Z',
+    candidate_name: 'Liam Gallagher',
+    job_title: 'Security Governance',
+    from_stage: 'ACTIVE',
+    to_stage: 'DEACTIVATED',
+    changed_by_name: 'Morgan Vance',
+    changed_by_role: 'ADMIN',
+    notes: 'Account suspended in accordance with security lifecycle retention.'
+  }
+];
+
 export const AdminDashboard = () => {
-  const [users, setUsers] = useState([]);
-  const [auditLogs, setAuditLogs] = useState([]);
-  const [activeTab, setActiveTab] = useState('users'); // 'users' | 'provision' | 'audit'
+  const [users, setUsers] = useState(SAMPLE_USERS);
+  const [auditLogs, setAuditLogs] = useState(SAMPLE_AUDIT_LOGS);
+  const [activeTab, setActiveTab] = useState('users'); // 'users' | 'activity' | 'provision'
   const [loading, setLoading] = useState(true);
-  const [search, setSearch] = useState('');
-  const [roleFilter, setRoleFilter] = useState('');
-  const [feedbackMsg, setFeedbackMsg] = useState('');
+  const [isLiveApi, setIsLiveApi] = useState(false);
+  const [bannerNotice, setBannerNotice] = useState('');
+  const [provisioning, setProvisioning] = useState(false);
 
   // Provision Form State
   const [newUserData, setNewUserData] = useState({
@@ -40,337 +222,579 @@ export const AdminDashboard = () => {
     role: 'HR'
   });
 
-  // Fetch Users
-  const loadUsers = async () => {
+  // Fetch Users from API or Fallback
+  const loadUsers = useCallback(async () => {
     try {
       setLoading(true);
-      const res = await adminApi.getUsers({ search, role: roleFilter, limit: 50 });
-      setUsers(res.data || []);
+      const res = await adminApi.getUsers({ limit: 100 });
+      if (res && res.data && Array.isArray(res.data)) {
+        setUsers(res.data);
+        setIsLiveApi(true);
+      } else {
+        throw new Error('Invalid response structure');
+      }
     } catch (err) {
-      setFeedbackMsg(`Error loading users: ${err.message}`);
+      console.warn('Admin API unreachable, engaging frontend development mode:', err.message);
+      setIsLiveApi(false);
+      // Retain or initialize local sample dataset
+      setUsers((prev) => (prev && prev.length > 0 ? prev : SAMPLE_USERS));
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
 
-  // Fetch Audit Logs
-  const loadAuditLogs = async () => {
+  // Fetch Audit Logs from API or Fallback
+  const loadAuditLogs = useCallback(async () => {
     try {
-      setLoading(true);
       const res = await adminApi.getAuditLogs({ limit: 50 });
-      setAuditLogs(res.data || []);
+      if (res && res.data && Array.isArray(res.data)) {
+        setAuditLogs(res.data);
+      }
     } catch (err) {
-      setFeedbackMsg(`Error loading audit logs: ${err.message}`);
-    } finally {
-      setLoading(false);
+      console.warn('Audit logs API offline, using local audit state:', err.message);
+      setAuditLogs((prev) => (prev && prev.length > 0 ? prev : SAMPLE_AUDIT_LOGS));
     }
-  };
+  }, []);
 
   useEffect(() => {
-    if (activeTab === 'users') loadUsers();
-    if (activeTab === 'audit') loadAuditLogs();
-  }, [activeTab, roleFilter]);
+    loadUsers();
+    loadAuditLogs();
+  }, [loadUsers, loadAuditLogs]);
 
-  // Handler: Update Role
-  const handleRoleChange = async (userId, newRole) => {
-    try {
+  // Update Role Handler
+  const handleUpdateRole = async (userId, newRole) => {
+    if (isLiveApi) {
       await adminApi.updateUserRole(userId, newRole);
-      setFeedbackMsg(`User ${userId} role updated to ${newRole}`);
-      loadUsers();
-    } catch (err) {
-      alert(err.message);
     }
+    // Update local state immediately
+    setUsers((prev) =>
+      prev.map((u) => (u.id === userId ? { ...u, role: newRole } : u))
+    );
+
+    // Record local audit entry
+    const targetUser = users.find((u) => u.id === userId);
+    const newAuditEntry = {
+      id: Date.now(),
+      changed_at: new Date().toISOString(),
+      candidate_name: targetUser ? targetUser.full_name : `User #${userId}`,
+      job_title: 'Access Control',
+      from_stage: targetUser ? targetUser.role : 'UNKNOWN',
+      to_stage: newRole,
+      changed_by_name: 'Current Admin',
+      changed_by_role: 'ADMIN',
+      notes: `Authorization role modified to ${newRole}.`
+    };
+    setAuditLogs((prev) => [newAuditEntry, ...prev]);
   };
 
-  // Handler: Toggle Status
-  const handleStatusToggle = async (userId, currentStatus) => {
-    try {
-      await adminApi.updateUserStatus(userId, !currentStatus);
-      setFeedbackMsg(`User ${userId} status updated`);
-      loadUsers();
-    } catch (err) {
-      alert(err.message);
+  // Toggle Status Handler
+  const handleToggleStatus = async (userId, newStatus) => {
+    if (isLiveApi) {
+      await adminApi.updateUserStatus(userId, newStatus);
     }
+    // Update local state immediately
+    setUsers((prev) =>
+      prev.map((u) => (u.id === userId ? { ...u, is_active: newStatus } : u))
+    );
+
+    // Record local audit entry
+    const targetUser = users.find((u) => u.id === userId);
+    const newAuditEntry = {
+      id: Date.now(),
+      changed_at: new Date().toISOString(),
+      candidate_name: targetUser ? targetUser.full_name : `User #${userId}`,
+      job_title: 'Account Status',
+      from_stage: newStatus ? 'INACTIVE' : 'ACTIVE',
+      to_stage: newStatus ? 'ACTIVE' : 'DEACTIVATED',
+      changed_by_name: 'Current Admin',
+      changed_by_role: 'ADMIN',
+      notes: `Account marked as ${newStatus ? 'Active' : 'Deactivated'}.`
+    };
+    setAuditLogs((prev) => [newAuditEntry, ...prev]);
   };
 
-  // Handler: Provision User
+  // Provision Account Handler
   const handleProvisionSubmit = async (e) => {
     e.preventDefault();
     try {
-      await adminApi.createUser(newUserData);
-      setFeedbackMsg(`Successfully provisioned ${newUserData.fullName} as ${newUserData.role}`);
+      setProvisioning(true);
+      if (isLiveApi) {
+        const res = await adminApi.createUser(newUserData);
+        if (res.data) {
+          setUsers((prev) => [
+            {
+              id: res.data.id || Date.now(),
+              org_id: res.data.orgId || 1,
+              full_name: res.data.fullName,
+              email: res.data.email,
+              role: res.data.role,
+              is_active: true,
+              created_at: new Date().toISOString(),
+              org_name: 'NovaTech Innovations Inc.'
+            },
+            ...prev
+          ]);
+        }
+      } else {
+        // Local temporary state provisioning
+        const newId = Math.max(...users.map((u) => u.id), 0) + 1;
+        const createdUser = {
+          id: newId,
+          org_id: 1,
+          full_name: newUserData.fullName.trim(),
+          email: newUserData.email.trim().toLowerCase(),
+          role: newUserData.role,
+          is_active: true,
+          created_at: new Date().toISOString(),
+          org_name: 'NovaTech Innovations Inc.'
+        };
+        setUsers((prev) => [createdUser, ...prev]);
+      }
+
+      setBannerNotice(
+        `Staff account '${newUserData.fullName}' provisioned successfully with role '${newUserData.role}'.`
+      );
       setNewUserData({ fullName: '', email: '', password: '', role: 'HR' });
       setActiveTab('users');
-      loadUsers();
     } catch (err) {
-      alert(err.message);
+      alert(err.message || 'Failed to provision staff account.');
+    } finally {
+      setProvisioning(false);
     }
   };
 
+  // KPI Metrics Calculation
+  const totalUsers = users.length;
+  const activeUsers = users.filter((u) => u.is_active).length;
+  const inactiveUsers = totalUsers - activeUsers;
+  const activePercentage = totalUsers > 0 ? Math.round((activeUsers / totalUsers) * 100) : 0;
+
+  const adminCount = users.filter((u) => u.role === 'ADMIN').length;
+  const hrCount = users.filter((u) => u.role === 'HR').length;
+  const candidateCount = users.filter((u) => u.role === 'CANDIDATE').length;
+
   return (
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between pb-6 border-b border-slate-200 gap-4">
+    <div className="admin-module-container space-y-8 animate-fadeIn">
+      {/* ── Top Executive Header ────────────────────────────────────────────── */}
+      <div className="flex flex-col md:flex-row md:items-center md:justify-between pb-6 border-b border-border gap-4">
         <div>
-          <div className="flex items-center gap-2">
-            <ShieldCheck className="w-6 h-6 text-indigo-600" />
-            <h1 className="text-2xl font-bold text-slate-900 tracking-tight">System Administration Console</h1>
+          <div className="flex items-center gap-2.5">
+            <div className="w-10 h-10 rounded-xl bg-indigo-500/15 border border-indigo-500/30 text-indigo-400 flex items-center justify-center shadow-sm">
+              <ShieldCheck className="w-5 h-5 text-primary" />
+            </div>
+            <div>
+              <div className="flex items-center gap-2">
+                <h1 className="text-2xl font-extrabold text-foreground tracking-tight">
+                  System Administration Console
+                </h1>
+                <span className="text-[11px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-primary/10 border border-primary/25 text-primary">
+                  Member 4 · W1
+                </span>
+              </div>
+              <p className="text-xs sm:text-sm text-muted-foreground mt-0.5">
+                Manage organization identity, user access controls, RBAC roles, and operational audit trails.
+              </p>
+            </div>
           </div>
-          <p className="text-sm text-slate-500 mt-1">
-            Manage organization users, role assignments, security controls, and audit trails.
-          </p>
         </div>
 
-        {/* Tab Controls */}
-        <div className="flex bg-slate-100 p-1 rounded-xl">
-          <button
-            onClick={() => setActiveTab('users')}
-            className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${
-              activeTab === 'users' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-600 hover:text-slate-900'
+        {/* Live / Temporary Data Source Indicator & Tab Navigation */}
+        <div className="flex flex-wrap items-center gap-3">
+          {/* Data Mode Pill */}
+          <div
+            className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold border transition-all ${
+              isLiveApi
+                ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-400'
+                : 'bg-indigo-500/10 border-indigo-500/30 text-indigo-400'
             }`}
+            title={
+              isLiveApi
+                ? 'Connected to real ATS backend database API'
+                : 'Backend API offline: Running in interactive frontend development mode with temporary state'
+            }
           >
-            Users Directory
-          </button>
-          <button
-            onClick={() => setActiveTab('provision')}
-            className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${
-              activeTab === 'provision' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-600 hover:text-slate-900'
-            }`}
-          >
-            + Provision User
-          </button>
-          <button
-            onClick={() => setActiveTab('audit')}
-            className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${
-              activeTab === 'audit' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-600 hover:text-slate-900'
-            }`}
-          >
-            Audit Trail
-          </button>
+            {isLiveApi ? (
+              <>
+                <Wifi className="w-3.5 h-3.5 text-emerald-400" />
+                <span>Live API Connected</span>
+              </>
+            ) : (
+              <>
+                <Database className="w-3.5 h-3.5 text-indigo-400" />
+                <span>Frontend Dev State</span>
+              </>
+            )}
+          </div>
+
+          {/* Module Tabs */}
+          <div className="flex bg-muted p-1 rounded-xl border border-border">
+            <button
+              type="button"
+              onClick={() => setActiveTab('users')}
+              className={`px-3 py-1.5 rounded-lg text-xs sm:text-sm font-semibold transition-colors ${
+                activeTab === 'users'
+                  ? 'bg-card text-foreground shadow-sm'
+                  : 'text-muted-foreground hover:text-foreground'
+              }`}
+            >
+              User Directory
+            </button>
+            <button
+              type="button"
+              onClick={() => setActiveTab('activity')}
+              className={`px-3 py-1.5 rounded-lg text-xs sm:text-sm font-semibold transition-colors flex items-center gap-1.5 ${
+                activeTab === 'activity'
+                  ? 'bg-card text-foreground shadow-sm'
+                  : 'text-muted-foreground hover:text-foreground'
+              }`}
+            >
+              <Activity className="w-3.5 h-3.5" />
+              <span>Audit Trail</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => setActiveTab('provision')}
+              className={`px-3 py-1.5 rounded-lg text-xs sm:text-sm font-semibold transition-colors ${
+                activeTab === 'provision'
+                  ? 'bg-card text-foreground shadow-sm'
+                  : 'text-muted-foreground hover:text-foreground'
+              }`}
+            >
+              + Provision Staff
+            </button>
+          </div>
         </div>
       </div>
 
-      {feedbackMsg && (
-        <div className="my-4 p-3 bg-indigo-50 border border-indigo-200 text-indigo-800 text-sm rounded-lg flex items-center justify-between">
-          <span>{feedbackMsg}</span>
-          <button onClick={() => setFeedbackMsg('')} className="text-xs font-semibold hover:underline">Dismiss</button>
+      {/* Dismissible Banner Notification */}
+      {bannerNotice && (
+        <div className="p-3.5 rounded-xl bg-primary/10 border border-primary/30 text-primary text-xs sm:text-sm flex items-center justify-between animate-fadeIn">
+          <div className="flex items-center gap-2">
+            <CheckCircle2 className="w-4 h-4 flex-shrink-0" />
+            <span>{bannerNotice}</span>
+          </div>
+          <button
+            type="button"
+            onClick={() => setBannerNotice('')}
+            className="text-xs font-bold hover:underline ml-4"
+          >
+            Dismiss
+          </button>
         </div>
       )}
 
-      {/* TAB 1: USERS DIRECTORY */}
+      {/* ── KPI Metric Summary Cards (Requirement 3.A) ────────────────────── */}
+      <div className="admin-stats-grid">
+        {/* 1. Total Users */}
+        <div className="admin-kpi-card kpi-total">
+          <div className="flex items-center justify-between">
+            <span className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
+              Total Users
+            </span>
+            <div className="admin-kpi-icon-wrap bg-indigo-500/10 text-indigo-400">
+              <Users className="w-5 h-5" />
+            </div>
+          </div>
+          <div className="mt-2 flex items-baseline gap-2">
+            <span className="text-3xl font-extrabold text-foreground tracking-tight">
+              {totalUsers}
+            </span>
+            <span className="text-xs text-muted-foreground font-medium">
+              Registered Accounts
+            </span>
+          </div>
+          <p className="text-[11px] text-muted-foreground mt-2">
+            System-wide directory across all roles
+          </p>
+        </div>
+
+        {/* 2. Active Users */}
+        <div className="admin-kpi-card kpi-active">
+          <div className="flex items-center justify-between">
+            <span className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
+              Active Users
+            </span>
+            <div className="admin-kpi-icon-wrap bg-emerald-500/10 text-emerald-400">
+              <UserCheck className="w-5 h-5" />
+            </div>
+          </div>
+          <div className="mt-2 flex items-baseline gap-2">
+            <span className="text-3xl font-extrabold text-foreground tracking-tight">
+              {activeUsers}
+            </span>
+            <span className="text-xs font-semibold px-1.5 py-0.5 rounded bg-emerald-500/15 text-emerald-400 border border-emerald-500/30">
+              {activePercentage}%
+            </span>
+          </div>
+          <p className="text-[11px] text-muted-foreground mt-2">
+            Authorized and active in current session
+          </p>
+        </div>
+
+        {/* 3. Inactive Users */}
+        <div className="admin-kpi-card kpi-inactive">
+          <div className="flex items-center justify-between">
+            <span className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
+              Inactive Users
+            </span>
+            <div className="admin-kpi-icon-wrap bg-rose-500/10 text-rose-400">
+              <UserX className="w-5 h-5" />
+            </div>
+          </div>
+          <div className="mt-2 flex items-baseline gap-2">
+            <span className="text-3xl font-extrabold text-foreground tracking-tight">
+              {inactiveUsers}
+            </span>
+            <span className="text-xs text-muted-foreground font-medium">
+              Deactivated
+            </span>
+          </div>
+          <p className="text-[11px] text-muted-foreground mt-2">
+            Access revoked or suspended accounts
+          </p>
+        </div>
+
+        {/* 4. Role Breakdown Summary */}
+        <div className="admin-kpi-card kpi-breakdown">
+          <div className="flex items-center justify-between">
+            <span className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
+              Role Distribution
+            </span>
+            <div className="admin-kpi-icon-wrap bg-purple-500/10 text-purple-400">
+              <KeyRound className="w-5 h-5" />
+            </div>
+          </div>
+          <div className="mt-2.5 flex items-center gap-2 flex-wrap">
+            <span className="role-pill-metric role-pill-admin text-xs">
+              <span className="font-bold">{adminCount}</span> Admins
+            </span>
+            <span className="role-pill-metric role-pill-hr text-xs">
+              <span className="font-bold">{hrCount}</span> HR
+            </span>
+            <span className="role-pill-metric role-pill-candidate text-xs">
+              <span className="font-bold">{candidateCount}</span> Candidates
+            </span>
+          </div>
+          <p className="text-[11px] text-muted-foreground mt-2">
+            Privilege segmentation ratio
+          </p>
+        </div>
+      </div>
+
+      {/* ── TAB 1: User Management Directory (Requirements 3.B, 3.C, 3.D) ──── */}
       {activeTab === 'users' && (
-        <div className="mt-6 space-y-4">
-          <div className="flex flex-col sm:flex-row gap-3 justify-between items-center bg-white p-4 rounded-xl border border-slate-200">
-            <div className="relative w-full sm:w-80">
-              <Search className="w-4 h-4 text-slate-400 absolute left-3 top-3" />
-              <input
-                type="text"
-                placeholder="Search by name or email..."
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-                onKeyDown={(e) => e.key === 'Enter' && loadUsers()}
-                className="w-full pl-9 pr-3 py-1.5 border border-slate-300 rounded-lg text-sm outline-none focus:ring-2 focus:ring-indigo-500"
-              />
-            </div>
-
-            <div className="flex items-center gap-2 w-full sm:w-auto">
-              <select
-                value={roleFilter}
-                onChange={(e) => setRoleFilter(e.target.value)}
-                className="px-3 py-1.5 border border-slate-300 rounded-lg text-sm bg-white"
-              >
-                <option value="">All Roles</option>
-                <option value="ADMIN">ADMIN</option>
-                <option value="HR">HR</option>
-                <option value="CANDIDATE">CANDIDATE</option>
-              </select>
-
-              <button
-                onClick={loadUsers}
-                className="px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg text-sm flex items-center gap-1.5"
-              >
-                <RefreshCw className="w-3.5 h-3.5" />
-                Refresh
-              </button>
+        <div className="space-y-4">
+          <div className="flex items-center justify-between">
+            <div>
+              <h2 className="text-lg font-bold text-foreground">
+                Organizational Directory
+              </h2>
+              <p className="text-xs text-muted-foreground">
+                Search, filter, inspect profiles, and assign access roles.
+              </p>
             </div>
           </div>
 
-          {/* Users Table */}
-          <div className="bg-white rounded-xl border border-slate-200 overflow-hidden shadow-sm">
-            <table className="min-w-full divide-y divide-slate-200 text-sm">
-              <thead className="bg-slate-50 text-slate-600 font-semibold">
-                <tr>
-                  <th className="py-3 px-4 text-left">User</th>
-                  <th className="py-3 px-4 text-left">Role</th>
-                  <th className="py-3 px-4 text-left">Status</th>
-                  <th className="py-3 px-4 text-left">Joined</th>
-                  <th className="py-3 px-4 text-right">Actions</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-200">
-                {users.map((u) => (
-                  <tr key={u.id} className="hover:bg-slate-50">
-                    <td className="py-3 px-4">
-                      <div className="font-medium text-slate-900">{u.full_name}</div>
-                      <div className="text-xs text-slate-500">{u.email}</div>
-                    </td>
-                    <td className="py-3 px-4">
-                      <select
-                        value={u.role}
-                        onChange={(e) => handleRoleChange(u.id, e.target.value)}
-                        className={`text-xs font-semibold px-2 py-1 rounded border ${
-                          u.role === 'ADMIN' ? 'bg-purple-50 text-purple-700 border-purple-200' :
-                          u.role === 'HR' ? 'bg-blue-50 text-blue-700 border-blue-200' :
-                          'bg-emerald-50 text-emerald-700 border-emerald-200'
-                        }`}
-                      >
-                        <option value="ADMIN">ADMIN</option>
-                        <option value="HR">HR</option>
-                        <option value="CANDIDATE">CANDIDATE</option>
-                      </select>
-                    </td>
-                    <td className="py-3 px-4">
-                      <span className={`inline-flex items-center gap-1 text-xs font-semibold px-2 py-0.5 rounded-full ${
-                        u.is_active ? 'bg-emerald-50 text-emerald-700' : 'bg-rose-50 text-rose-700'
-                      }`}>
-                        {u.is_active ? <CheckCircle2 className="w-3 h-3" /> : <XCircle className="w-3 h-3" />}
-                        {u.is_active ? 'Active' : 'Deactivated'}
-                      </span>
-                    </td>
-                    <td className="py-3 px-4 text-slate-500 text-xs">
-                      {new Date(u.created_at).toLocaleDateString()}
-                    </td>
-                    <td className="py-3 px-4 text-right">
-                      <button
-                        onClick={() => handleStatusToggle(u.id, u.is_active)}
-                        className={`text-xs font-medium px-2.5 py-1 rounded border transition-colors ${
-                          u.is_active 
-                            ? 'text-rose-600 border-rose-200 hover:bg-rose-50' 
-                            : 'text-emerald-600 border-emerald-200 hover:bg-emerald-50'
-                        }`}
-                      >
-                        {u.is_active ? 'Deactivate' : 'Reactivate'}
-                      </button>
-                    </td>
+          <UserManagement
+            users={users}
+            loading={loading}
+            isLiveApi={isLiveApi}
+            onRefresh={loadUsers}
+            onUpdateRole={handleUpdateRole}
+            onToggleStatus={handleToggleStatus}
+            onProvisionUser={() => setActiveTab('provision')}
+          />
+        </div>
+      )}
+
+      {/* ── TAB 2: Recent User Activity & Audit Trail (Requirement 3.A) ───── */}
+      {activeTab === 'activity' && (
+        <div className="space-y-4">
+          <div className="p-4 rounded-xl bg-card border border-border shadow-sm flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+            <div>
+              <h2 className="text-lg font-bold text-foreground">
+                Recent User Activity & Audit Log
+              </h2>
+              <p className="text-xs text-muted-foreground">
+                Immutable chronological log of authentication, role alterations, and pipeline stage changes.
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={loadAuditLogs}
+              className="btn btn-outline btn-sm flex items-center gap-1.5 self-start sm:self-auto"
+            >
+              <RefreshCw className="w-3.5 h-3.5" />
+              <span>Refresh Log</span>
+            </button>
+          </div>
+
+          <div className="admin-table-shell">
+            <div className="admin-table-wrapper">
+              <table className="admin-table">
+                <thead>
+                  <tr>
+                    <th scope="col" style={{ width: '170px' }}>Timestamp</th>
+                    <th scope="col">Candidate / Target</th>
+                    <th scope="col">Operation / Transition</th>
+                    <th scope="col">Executed By</th>
+                    <th scope="col">Audit Notes</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
+                </thead>
+                <tbody>
+                  {auditLogs.length === 0 ? (
+                    <tr>
+                      <td colSpan={5} className="py-10 text-center text-xs text-muted-foreground">
+                        No audit log events recorded yet.
+                      </td>
+                    </tr>
+                  ) : (
+                    auditLogs.map((log) => (
+                      <tr key={log.id} className="hover:bg-muted/50 transition-colors">
+                        <td className="text-xs text-muted-foreground whitespace-nowrap font-mono">
+                          <div className="flex items-center gap-1.5">
+                            <Clock className="w-3.5 h-3.5 text-muted-foreground" />
+                            <span>{new Date(log.changed_at).toLocaleString()}</span>
+                          </div>
+                        </td>
+                        <td>
+                          <div className="font-semibold text-foreground text-xs">
+                            {log.candidate_name}
+                          </div>
+                          {log.job_title && (
+                            <div className="text-[11px] text-muted-foreground">
+                              {log.job_title}
+                            </div>
+                          )}
+                        </td>
+                        <td>
+                          <div className="inline-flex items-center gap-1.5 text-xs font-mono">
+                            <span className="text-muted-foreground">
+                              {log.from_stage || 'INIT'}
+                            </span>
+                            <span className="text-primary font-bold">→</span>
+                            <span className="font-bold text-foreground px-1.5 py-0.5 rounded bg-primary/10 border border-primary/20">
+                              {log.to_stage}
+                            </span>
+                          </div>
+                        </td>
+                        <td>
+                          <div className="text-xs">
+                            <span className="font-semibold text-foreground">
+                              {log.changed_by_name}
+                            </span>{' '}
+                            <span className={`admin-role-badge admin-role-${log.changed_by_role} text-[10px] py-0 px-1 ml-1`}>
+                              {log.changed_by_role}
+                            </span>
+                          </div>
+                        </td>
+                        <td className="text-xs text-muted-foreground max-w-sm truncate">
+                          {log.notes || '—'}
+                        </td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
+            </div>
           </div>
         </div>
       )}
 
-      {/* TAB 2: PROVISION USER */}
+      {/* ── TAB 3: Provision Staff Account ──────────────────────────────────── */}
       {activeTab === 'provision' && (
-        <div className="mt-6 max-w-xl bg-white p-6 rounded-xl border border-slate-200 shadow-sm">
-          <h3 className="text-lg font-bold text-slate-900 mb-1">Provision Internal Staff Account</h3>
-          <p className="text-xs text-slate-500 mb-6">Create new Admin or HR recruiter credentials.</p>
+        <div className="max-w-2xl mx-auto p-6 rounded-2xl bg-card border border-border shadow-md space-y-6 animate-fadeIn">
+          <div className="border-b border-border pb-4">
+            <div className="flex items-center gap-2 text-primary mb-1">
+              <UserPlus className="w-5 h-5" />
+              <h2 className="text-lg font-bold text-foreground">
+                Provision Internal Staff Account
+              </h2>
+            </div>
+            <p className="text-xs text-muted-foreground">
+              Create an administrative or recruiter credential with immediate organizational access.
+            </p>
+          </div>
 
           <form onSubmit={handleProvisionSubmit} className="space-y-4">
             <div>
-              <label className="block text-xs font-semibold text-slate-700 mb-1">Full Name</label>
+              <label className="block text-xs font-bold text-foreground mb-1 uppercase tracking-wider">
+                Full Name <span className="text-primary">*</span>
+              </label>
               <input
                 type="text"
                 required
                 value={newUserData.fullName}
                 onChange={(e) => setNewUserData({ ...newUserData, fullName: e.target.value })}
-                placeholder="Jane Smith"
-                className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm outline-none focus:ring-2 focus:ring-indigo-500"
+                placeholder="e.g. Jane Foster"
+                className="w-full px-3.5 py-2.5 rounded-lg text-sm bg-background border border-border text-foreground outline-none focus:ring-2 focus:ring-primary focus:border-primary transition-all"
               />
             </div>
 
             <div>
-              <label className="block text-xs font-semibold text-slate-700 mb-1">Work Email</label>
+              <label className="block text-xs font-bold text-foreground mb-1 uppercase tracking-wider">
+                Work Email Address <span className="text-primary">*</span>
+              </label>
               <input
                 type="email"
                 required
                 value={newUserData.email}
                 onChange={(e) => setNewUserData({ ...newUserData, email: e.target.value })}
-                placeholder="jane.hr@novatech.io"
-                className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm outline-none focus:ring-2 focus:ring-indigo-500"
+                placeholder="jane.foster@novatech.io"
+                className="w-full px-3.5 py-2.5 rounded-lg text-sm bg-background border border-border text-foreground outline-none focus:ring-2 focus:ring-primary focus:border-primary transition-all"
               />
             </div>
 
             <div>
-              <label className="block text-xs font-semibold text-slate-700 mb-1">Temporary Password</label>
+              <label className="block text-xs font-bold text-foreground mb-1 uppercase tracking-wider">
+                Initial Password <span className="text-primary">*</span>
+              </label>
               <input
                 type="password"
                 required
                 minLength={8}
                 value={newUserData.password}
                 onChange={(e) => setNewUserData({ ...newUserData, password: e.target.value })}
-                placeholder="Min 8 characters"
-                className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm outline-none focus:ring-2 focus:ring-indigo-500"
+                placeholder="Minimum 8 characters"
+                className="w-full px-3.5 py-2.5 rounded-lg text-sm bg-background border border-border text-foreground outline-none focus:ring-2 focus:ring-primary focus:border-primary transition-all"
               />
+              <p className="text-[11px] text-muted-foreground mt-1">
+                Must be at least 8 characters. The user will be required to change this upon login.
+              </p>
             </div>
 
             <div>
-              <label className="block text-xs font-semibold text-slate-700 mb-1">Assigned Role</label>
+              <label className="block text-xs font-bold text-foreground mb-1 uppercase tracking-wider">
+                Organizational Role <span className="text-primary">*</span>
+              </label>
               <select
                 value={newUserData.role}
                 onChange={(e) => setNewUserData({ ...newUserData, role: e.target.value })}
-                className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm outline-none focus:ring-2 focus:ring-indigo-500 bg-white"
+                className="w-full px-3.5 py-2.5 rounded-lg text-sm bg-background border border-border text-foreground outline-none focus:ring-2 focus:ring-primary focus:border-primary transition-all cursor-pointer"
               >
-                <option value="HR">HR Recruiter</option>
-                <option value="ADMIN">System Administrator</option>
+                <option value="HR">HR Recruiter (HR)</option>
+                <option value="ADMIN">System Administrator (ADMIN)</option>
               </select>
             </div>
 
-            <button
-              type="submit"
-              className="w-full py-2 bg-indigo-600 hover:bg-indigo-700 text-white font-medium rounded-lg text-sm transition-colors"
-            >
-              Provision Account
-            </button>
+            <div className="pt-2 flex items-center justify-end gap-3">
+              <button
+                type="button"
+                onClick={() => setActiveTab('users')}
+                className="btn btn-outline btn-sm"
+              >
+                Cancel
+              </button>
+              <button
+                type="submit"
+                disabled={provisioning}
+                className="btn btn-primary btn-sm flex items-center gap-1.5"
+              >
+                <UserPlus className="w-3.5 h-3.5" />
+                <span>{provisioning ? 'Provisioning...' : 'Provision Account'}</span>
+              </button>
+            </div>
           </form>
-        </div>
-      )}
-
-      {/* TAB 3: AUDIT TRAIL */}
-      {activeTab === 'audit' && (
-        <div className="mt-6 bg-white rounded-xl border border-slate-200 overflow-hidden shadow-sm">
-          <div className="p-4 border-b border-slate-200 flex justify-between items-center">
-            <h3 className="font-semibold text-slate-900">Application State Audit Logs</h3>
-            <button onClick={loadAuditLogs} className="text-xs text-indigo-600 font-semibold hover:underline">
-              Refresh Logs
-            </button>
-          </div>
-          <table className="min-w-full divide-y divide-slate-200 text-sm">
-            <thead className="bg-slate-50 text-slate-600 font-semibold">
-              <tr>
-                <th className="py-3 px-4 text-left">Timestamp</th>
-                <th className="py-3 px-4 text-left">Candidate & Job</th>
-                <th className="py-3 px-4 text-left">Transition</th>
-                <th className="py-3 px-4 text-left">Changed By</th>
-                <th className="py-3 px-4 text-left">Notes</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-200">
-              {auditLogs.map((log) => (
-                <tr key={log.id} className="hover:bg-slate-50">
-                  <td className="py-3 px-4 text-xs text-slate-500 whitespace-nowrap">
-                    {new Date(log.changed_at).toLocaleString()}
-                  </td>
-                  <td className="py-3 px-4">
-                    <div className="font-medium text-slate-900">{log.candidate_name}</div>
-                    <div className="text-xs text-slate-500">{log.job_title}</div>
-                  </td>
-                  <td className="py-3 px-4 text-xs font-mono">
-                    <span className="text-slate-400">{log.from_stage || 'START'}</span>
-                    {' -> '}
-                    <span className="font-bold text-indigo-600">{log.to_stage}</span>
-                  </td>
-                  <td className="py-3 px-4 text-xs">
-                    <span className="font-medium text-slate-700">{log.changed_by_name}</span>{' '}
-                    <span className="text-slate-400">({log.changed_by_role})</span>
-                  </td>
-                  <td className="py-3 px-4 text-xs text-slate-600 max-w-xs truncate">
-                    {log.notes || '—'}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
         </div>
       )}
     </div>
@@ -378,4 +802,3 @@ export const AdminDashboard = () => {
 };
 
 export default AdminDashboard;
-

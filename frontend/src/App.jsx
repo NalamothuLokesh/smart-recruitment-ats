@@ -140,6 +140,14 @@ function AppShell() {
                 </ProtectedRoute>
               }
             />
+            <Route
+              path="/admin/users"
+              element={
+                <ProtectedRoute allowedRoles={['ADMIN']}>
+                  <AdminDashboard />
+                </ProtectedRoute>
+              }
+            />
 
             {/* Catch-all 404 */}
             <Route
