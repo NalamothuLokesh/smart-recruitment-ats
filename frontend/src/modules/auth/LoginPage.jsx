@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useNavigate, useLocation, Link } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
+import { ForgotPasswordModal } from './ForgotPasswordModal';
 import {
   Briefcase,
   Lock,
@@ -8,6 +9,7 @@ import {
   Eye,
   EyeOff,
   AlertCircle,
+  CheckCircle2,
   ArrowRight,
   Sparkles,
   Loader2
@@ -17,6 +19,8 @@ export const LoginPage = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
+  const [showForgotPassword, setShowForgotPassword] = useState(false);
+  const [successNotice, setSuccessNotice] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
 
@@ -76,6 +80,23 @@ export const LoginPage = () => {
         <h1 className="auth-title">Welcome back</h1>
         <p className="auth-sub">Sign in to your account to access candidate pipelines & jobs</p>
 
+        {/* Success Alert */}
+        {successNotice && (
+          <div className="p-3 mb-4 rounded-xl bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800 text-emerald-800 dark:text-emerald-300 text-xs flex items-center justify-between gap-2 animate-fadeIn">
+            <div className="flex items-center gap-2">
+              <CheckCircle2 size={16} className="text-emerald-600 dark:text-emerald-400 flex-shrink-0" />
+              <span>{successNotice}</span>
+            </div>
+            <button
+              type="button"
+              onClick={() => setSuccessNotice('')}
+              className="text-xs font-semibold hover:underline text-emerald-700 dark:text-emerald-400"
+            >
+              Dismiss
+            </button>
+          </div>
+        )}
+
         {/* Error Alert */}
         {error && (
           <div className="auth-error animate-fadeIn" role="alert" aria-live="assertive">
@@ -105,7 +126,20 @@ export const LoginPage = () => {
 
           {/* Password */}
           <div className="auth-field">
-            <label className="auth-label">Password <span className="auth-required">*</span></label>
+            <div className="flex justify-between items-center mb-1">
+              <label className="auth-label mb-0">Password <span className="auth-required">*</span></label>
+              <button
+                type="button"
+                onClick={() => {
+                  setError('');
+                  setSuccessNotice('');
+                  setShowForgotPassword(true);
+                }}
+                className="text-xs font-medium text-indigo-600 dark:text-indigo-400 hover:text-indigo-700 dark:hover:text-indigo-300 hover:underline transition-colors cursor-pointer"
+              >
+                Forgot password?
+              </button>
+            </div>
             <div className="auth-inp-wrap">
               <Lock size={16} className="auth-inp-icon" />
               <input
@@ -181,6 +215,17 @@ export const LoginPage = () => {
         </div>
         </div>
       </div>
+
+      {/* Forgot Password Modal */}
+      <ForgotPasswordModal
+        isOpen={showForgotPassword}
+        onClose={() => setShowForgotPassword(false)}
+        onSuccess={({ email: resetEmail, message }) => {
+          setEmail(resetEmail);
+          setPassword('');
+          setSuccessNotice(message);
+        }}
+      />
     </div>
   );
 };

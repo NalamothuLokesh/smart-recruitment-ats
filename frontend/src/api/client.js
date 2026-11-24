@@ -44,7 +44,10 @@ apiClient.interceptors.response.use(
 export const authApi = {
   register: (payload) => apiClient.post('/auth/register', payload),
   login: (credentials) => apiClient.post('/auth/login', credentials),
-  getMe: () => apiClient.get('/auth/me')
+  getMe: () => apiClient.get('/auth/me'),
+  sendVerificationOtp: (email) => apiClient.post('/auth/send-verification-otp', { email }),
+  forgotPassword: (email) => apiClient.post('/auth/forgot-password', { email }),
+  resetPassword: (payload) => apiClient.post('/auth/reset-password', payload)
 };
 
 // ==========================================

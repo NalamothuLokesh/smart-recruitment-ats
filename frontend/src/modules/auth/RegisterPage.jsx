@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
+import { authApi } from '../../api/client';
 import {
   UserCheck,
   Mail,
@@ -11,6 +12,8 @@ import {
   Linkedin,
   Briefcase,
   AlertCircle,
+  CheckCircle2,
+  Sparkles,
   Info,
   ArrowRight,
   Loader2,
@@ -22,14 +25,21 @@ export const RegisterPage = () => {
     fullName: '',
     email: '',
     password: '',
+    confirmPassword: '',
     phone: '',
     experienceYears: '',
     skills: '',
-    linkedinUrl: ''
+    linkedinUrl: '',
+    verificationCode: ''
   });
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  const [otpSent, setOtpSent] = useState(false);
+  const [otpSending, setOtpSending] = useState(false);
+  const [devOtp, setDevOtp] = useState('');
+  const [isEmailVerified, setIsEmailVerified] = useState(false);
 
   const { register } = useAuth();
   const navigate = useNavigate();
@@ -39,9 +49,46 @@ export const RegisterPage = () => {
     if (error) setError("");
   };
 
+  const handleSendVerificationCode = async () => {
+    if (!formData.email || !formData.email.includes('@')) {
+      setError('Please enter a valid email address first.');
+      return;
+    }
+
+    setError('');
+    setOtpSending(true);
+
+    try {
+      const res = await authApi.sendVerificationOtp(formData.email.trim());
+      setOtpSent(true);
+      if (res.data?.otpCode) {
+        setDevOtp(res.data.otpCode);
+      }
+    } catch (err) {
+      setError(
+        err.response?.data?.message ||
+        err.message ||
+        'Failed to send verification code.'
+      );
+    } finally {
+      setOtpSending(false);
+    }
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError('');
+
+    if (formData.password.length < 8) {
+      setError('Password must be at least 8 characters long.');
+      return;
+    }
+
+    if (formData.password !== formData.confirmPassword) {
+      setError('Passwords do not match. Please verify your password confirmation.');
+      return;
+    }
+
     setLoading(true);
 
     try {
@@ -54,6 +101,8 @@ export const RegisterPage = () => {
         fullName: formData.fullName,
         email: formData.email,
         password: formData.password,
+        confirmPassword: formData.confirmPassword,
+        verificationCode: formData.verificationCode || undefined,
         phone: formData.phone,
         experienceYears: parseFloat(formData.experienceYears) || 0,
         skills: skillsArray,
@@ -118,38 +167,134 @@ export const RegisterPage = () => {
               </div>
             </div>
             <div className="auth-field">
-              <label className="auth-label">Email Address <span className="auth-required">*</span></label>
+              <div className="flex justify-between items-center mb-1">
+                <label className="auth-label mb-0">Email Address <span className="auth-required">*</span></label>
+                {!isEmailVerified && (
+                  <button
+                    type="button"
+                    onClick={handleSendVerificationCode}
+                    disabled={otpSending || !formData.email}
+                    className="text-xs font-semibold text-indigo-600 dark:text-indigo-400 hover:underline disabled:opacity-50"
+                  >
+                    {otpSending ? 'Sending...' : otpSent ? 'Resend code' : 'Verify email'}
+                  </button>
+                )}
+                {isEmailVerified && (
+                  <span className="text-xs font-semibold text-emerald-600 dark:text-emerald-400 flex items-center gap-1">
+                    <CheckCircle2 size={12} /> Verified
+                  </span>
+                )}
+              </div>
               <div className="auth-inp-wrap">
                 <input className="auth-inp" type="email" required autoComplete="email" name="email" value={formData.email} onChange={handleChange} placeholder="jane.doe@example.com" />
               </div>
             </div>
           </div>
 
-          <div className="auth-field">
-            <label className="auth-label">Password <span className="auth-required">*</span></label>
-            <div className="auth-inp-wrap">
-              <input
-                className="auth-inp"
-                type={showPassword ? 'text' : 'password'}
-                required
-                minLength={8}
-                autoComplete="new-password"
-                name="password"
-                value={formData.password}
-                onChange={handleChange}
-                placeholder="At least 8 characters"
-              />
-              <button
-                type="button"
-                className="auth-pw-toggle"
-                onClick={() => setShowPassword((visible) => !visible)}
-                aria-pressed={showPassword}
-                aria-label={showPassword ? "Hide password" : "Show password"}
-              >
-                {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
-              </button>
+          {/* Email Verification OTP Prompt */}
+          {otpSent && !isEmailVerified && (
+            <div className="p-3 my-2 rounded-xl bg-indigo-50/70 dark:bg-indigo-950/40 border border-indigo-200 dark:border-indigo-800 space-y-2 animate-fadeIn">
+              <div className="flex items-center justify-between text-xs">
+                <span className="font-semibold text-indigo-900 dark:text-indigo-200">6-Digit Verification Code</span>
+                {devOtp && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setFormData((prev) => ({ ...prev, verificationCode: devOtp }));
+                      setIsEmailVerified(true);
+                    }}
+                    className="text-[11px] font-mono font-bold text-amber-700 dark:text-amber-300 bg-amber-100 dark:bg-amber-900/60 px-2 py-0.5 rounded hover:underline"
+                    title="Click to auto-verify"
+                  >
+                    Code: {devOtp} (Click to auto-verify)
+                  </button>
+                )}
+              </div>
+              <div className="flex gap-2">
+                <div className="auth-inp-wrap flex-1 min-h-[42px]">
+                  <input
+                    className="auth-inp font-mono font-bold tracking-widest text-center"
+                    type="text"
+                    maxLength={6}
+                    placeholder="123456"
+                    name="verificationCode"
+                    value={formData.verificationCode}
+                    onChange={handleChange}
+                  />
+                </div>
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (formData.verificationCode.length === 6) {
+                      setIsEmailVerified(true);
+                    }
+                  }}
+                  className="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-xs font-semibold"
+                >
+                  Confirm Code
+                </button>
+              </div>
             </div>
-            <p className="auth-password-hint">Use at least 8 characters.</p>
+          )}
+
+          {/* Password & Password Verification / Confirm Password */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div className="auth-field">
+              <label className="auth-label">Password <span className="auth-required">*</span></label>
+              <div className="auth-inp-wrap">
+                <input
+                  className="auth-inp"
+                  type={showPassword ? 'text' : 'password'}
+                  required
+                  minLength={8}
+                  autoComplete="new-password"
+                  name="password"
+                  value={formData.password}
+                  onChange={handleChange}
+                  placeholder="At least 8 characters"
+                />
+                <button
+                  type="button"
+                  className="auth-pw-toggle"
+                  onClick={() => setShowPassword((visible) => !visible)}
+                  aria-pressed={showPassword}
+                  aria-label={showPassword ? "Hide password" : "Show password"}
+                >
+                  {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                </button>
+              </div>
+            </div>
+
+            <div className="auth-field">
+              <label className="auth-label">Verify Password <span className="auth-required">*</span></label>
+              <div className="auth-inp-wrap">
+                <input
+                  className="auth-inp"
+                  type={showConfirmPassword ? 'text' : 'password'}
+                  required
+                  minLength={8}
+                  autoComplete="new-password"
+                  name="confirmPassword"
+                  value={formData.confirmPassword}
+                  onChange={handleChange}
+                  placeholder="Re-enter password"
+                />
+                <button
+                  type="button"
+                  className="auth-pw-toggle"
+                  onClick={() => setShowConfirmPassword((visible) => !visible)}
+                  aria-pressed={showConfirmPassword}
+                  aria-label={showConfirmPassword ? "Hide password" : "Show password"}
+                >
+                  {showConfirmPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                </button>
+              </div>
+              {formData.confirmPassword && (
+                <p className={`text-[11px] mt-1 font-medium ${formData.password === formData.confirmPassword ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-500'}`}>
+                  {formData.password === formData.confirmPassword ? '✓ Passwords match' : '✗ Passwords do not match'}
+                </p>
+              )}
+            </div>
           </div>
 
           <div className="auth-section-heading auth-section-heading-profile">
