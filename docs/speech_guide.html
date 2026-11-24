@@ -1,0 +1,403 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Smart ATS — Team Project Explanation & Speech Guide</title>
+  <style>
+    @page {
+      size: A4;
+      margin: 18mm 16mm 18mm 16mm;
+      @bottom-right {
+        content: counter(page);
+        font-size: 9pt;
+        color: #64748b;
+      }
+    }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+      color: #0f172a;
+      line-height: 1.5;
+      font-size: 10pt;
+      background: #ffffff;
+      margin: 0;
+      padding: 0;
+    }
+    .header-banner {
+      border-bottom: 2px solid #4f46e5;
+      padding-bottom: 12px;
+      margin-bottom: 20px;
+    }
+    .org-badge {
+      font-size: 8pt;
+      font-weight: 700;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      color: #4f46e5;
+      margin-bottom: 4px;
+    }
+    h1 {
+      font-size: 20pt;
+      margin: 0 0 6px 0;
+      color: #0f172a;
+      font-weight: 800;
+      letter-spacing: -0.02em;
+    }
+    .subtitle {
+      font-size: 10pt;
+      color: #64748b;
+      margin: 0;
+    }
+    .meta-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 10px;
+      margin-top: 14px;
+      background: #f8fafc;
+      padding: 10px 14px;
+      border-radius: 8px;
+      border: 1px solid #e2e8f0;
+      font-size: 8.5pt;
+    }
+    .meta-item strong {
+      display: block;
+      color: #334155;
+      text-transform: uppercase;
+      font-size: 7.5pt;
+      letter-spacing: 0.05em;
+    }
+    .speech-section {
+      margin-bottom: 26px;
+      page-break-inside: avoid;
+    }
+    .page-break {
+      page-break-before: always;
+    }
+    .speaker-card {
+      background: #f8fafc;
+      border-left: 4px solid #4f46e5;
+      border-radius: 0 8px 8px 0;
+      padding: 10px 14px;
+      margin-bottom: 12px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .speaker-name {
+      font-size: 12pt;
+      font-weight: 700;
+      color: #0f172a;
+    }
+    .speaker-role {
+      font-size: 9pt;
+      color: #4f46e5;
+      font-weight: 600;
+    }
+    .time-badge {
+      background: #e0e7ff;
+      color: #3730a3;
+      padding: 3px 8px;
+      border-radius: 9999px;
+      font-size: 8pt;
+      font-weight: 700;
+    }
+    .script-box {
+      border: 1px solid #e2e8f0;
+      border-radius: 8px;
+      padding: 14px 16px;
+      background: #ffffff;
+      margin-bottom: 12px;
+    }
+    .script-title {
+      font-size: 8.5pt;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: #64748b;
+      margin-bottom: 8px;
+    }
+    .speech-text {
+      font-size: 9.5pt;
+      color: #1e293b;
+      line-height: 1.6;
+      margin: 0;
+    }
+    .speech-text p {
+      margin: 0 0 10px 0;
+    }
+    .speech-text p:last-child {
+      margin-bottom: 0;
+    }
+    .cue {
+      background: #fef3c7;
+      color: #92400e;
+      font-weight: 600;
+      padding: 1px 5px;
+      border-radius: 4px;
+      font-size: 8.5pt;
+    }
+    .tech-highlight {
+      background: #f1f5f9;
+      color: #0f172a;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+      padding: 1px 4px;
+      border-radius: 4px;
+      font-size: 8.5pt;
+    }
+    .bullet-list {
+      margin: 6px 0 10px 18px;
+      padding: 0;
+      font-size: 9pt;
+      color: #334155;
+    }
+    .bullet-list li {
+      margin-bottom: 4px;
+    }
+    .handoff-box {
+      background: #f0fdf4;
+      border: 1px dashed #86efac;
+      padding: 8px 12px;
+      border-radius: 6px;
+      font-size: 9pt;
+      color: #166534;
+      margin-top: 8px;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Header Banner -->
+  <div class="header-banner">
+    <div class="org-badge">Qveto Technologies — Project 1 Presentation Guide</div>
+    <h1>Smart Recruitment & ATS — Team Presentation Speech</h1>
+    <p class="subtitle">Word-for-Word Speaking Script & Architecture Walkthrough for 5-Member Team</p>
+
+    <div class="meta-grid">
+      <div class="meta-item">
+        <strong>Project</strong>
+        Smart ATS (Month 1)
+      </div>
+      <div class="meta-item">
+        <strong>Team Lead</strong>
+        Lokesh Chowdary Nalamothu
+      </div>
+      <div class="meta-item">
+        <strong>Framework</strong>
+        Qveto 4-Week Delivery
+      </div>
+      <div class="meta-item">
+        <strong>Total Duration</strong>
+        12 – 15 Minutes
+      </div>
+    </div>
+  </div>
+
+  <!-- Agenda Overview -->
+  <div style="background: #eef2ff; border: 1px solid #c7d2fe; padding: 10px 14px; border-radius: 8px; margin-bottom: 20px; font-size: 8.5pt; color: #3730a3;">
+    <strong>Presentation Flow:</strong>
+    <strong>1.</strong> Lokesh (System Architecture & Security) &rarr;
+    <strong>2.</strong> Meghana (Candidate UX & Resume Vault) &rarr;
+    <strong>3.</strong> Arjun / Member 2 (Public Job Discovery & Requisitions) &rarr;
+    <strong>4.</strong> Deepanshu (Recruitment Pipeline & Analytics) &rarr;
+    <strong>5.</strong> Shubham (Admin Console & Operations) &rarr;
+    <strong>6.</strong> Lokesh (Closing & Q&A).
+  </div>
+
+  <!-- SPEAKER 1: TEAM LEAD -->
+  <div class="speech-section">
+    <div class="speaker-card">
+      <div>
+        <div class="speaker-name">1. Lokesh Chowdary Nalamothu</div>
+        <div class="speaker-role">Team Lead & Principal Full-Stack Architect (Core Backend, Database & Security)</div>
+      </div>
+      <div class="time-badge">2.5 – 3.0 Mins</div>
+    </div>
+
+    <div class="script-box">
+      <div class="script-title">Speaking Script</div>
+      <div class="speech-text">
+        <p>
+          "Good afternoon mentors and panel. Today our team is proud to present <strong>Smart ATS</strong>, an enterprise-grade Applicant Tracking System built on a modern, decoupled architecture with <strong>Node.js Express</strong>, a normalized <strong>MySQL database</strong>, and a responsive <strong>React Vite</strong> frontend."
+        </p>
+        <p>
+          "As Team Lead and Principal Architect, I spearheaded the core foundational infrastructure. Here are the primary engineering pillars I implemented:
+        </p>
+        <ul class="bullet-list">
+          <li><strong>Normalized Database & State Machine:</strong> Designed a fully normalized schema supporting rigorous recruitment state transitions (<span class="tech-highlight">APPLIED &rarr; SCREENING &rarr; INTERVIEW &rarr; SELECTED &rarr; OFFERED &rarr; REJECTED</span>) with automated audit logging triggers.</li>
+          <li><strong>Zero-Trust RBAC & JWT Security:</strong> Engineered strict role-based access controls across three distinct actor roles: <span class="tech-highlight">ADMIN</span>, <span class="tech-highlight">HR</span>, and <span class="tech-highlight">CANDIDATE</span>. Unauthorized privilege escalation is prevented at the router middleware level.</li>
+          <li><strong>Secure File Isolation:</strong> All candidate resumes are stored in isolated server directories with randomized filenames and strict download verification—preventing public file exposure.</li>
+          <li><strong>Automated Quality Assurance:</strong> Authored a comprehensive Jest test suite covering RBAC enforcement, candidate withdrawal boundaries, and zero-division analytics safety, currently passing at <strong>100% green (12/12 tests)</strong>.</li>
+        </ul>
+        <p>
+          <span class="cue">[Action / Screen Cue]</span> <em>"Let me hand over to <strong>Meghana</strong>, who spearheaded our end-to-end Candidate Portal experience."</em>
+        </p>
+      </div>
+    </div>
+  </div>
+
+  <div class="page-break"></div>
+
+  <!-- SPEAKER 2: MEMBER 1 (MEGHANA) -->
+  <div class="speech-section">
+    <div class="speaker-card">
+      <div>
+        <div class="speaker-name">2. Meghana</div>
+        <div class="speaker-role">Member 1 — Candidate Experience & Public Portal Engineer (<span class="tech-highlight">CandidateDashboard.jsx</span>)</div>
+      </div>
+      <div class="time-badge">2.0 – 2.5 Mins</div>
+    </div>
+
+    <div class="script-box">
+      <div class="script-title">Speaking Script</div>
+      <div class="speech-text">
+        <p>
+          "Thank you, Lokesh. I was responsible for the <strong>Candidate Portal Track</strong>, designing a friction-free, empowering experience for job seekers."
+        </p>
+        <p>
+          "Candidates interact with the platform through a dedicated dashboard where transparency and data ownership are top priorities:
+        </p>
+        <ul class="bullet-list">
+          <li><strong>Personalized Candidate Command Center:</strong> Displays live KPI metrics including active applications, interviews scheduled, and offer notifications.</li>
+          <li><strong>Private Resume Vault:</strong> Candidates can upload PDF and DOCX resumes with real-time file validation, view their uploaded files, and independently delete previous versions with automatic disk cleanup.</li>
+          <li><strong>24-Hour Application Grace Window:</strong> Built an ethical candidate withdrawal feature allowing candidates to retract an application within 24 hours of submission, as long as it has not advanced beyond initial review.</li>
+          <li><strong>Chronological Stage Tracker:</strong> Candidates have real-time visibility into their application's progression without needing to email HR for updates.</li>
+        </ul>
+        <div class="handoff-box">
+          <strong>Handoff:</strong> <em>"Now, let's look at how jobs are published and managed. I'll hand over to our HR Jobs lead to walk through the Public Board and Requisitions."</em>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- SPEAKER 3: MEMBER 2 (HR JOBS) -->
+  <div class="speech-section">
+    <div class="speaker-card">
+      <div>
+        <div class="speaker-name">3. HR Jobs & Requisitions Lead</div>
+        <div class="speaker-role">Member 2 — Job Discovery & Requisition Lifecycle (<span class="tech-highlight">PublicJobBoard.jsx</span>, <span class="tech-highlight">JobManagementPage.jsx</span>)</div>
+      </div>
+      <div class="time-badge">2.0 – 2.5 Mins</div>
+    </div>
+
+    <div class="script-box">
+      <div class="script-title">Speaking Script</div>
+      <div class="speech-text">
+        <p>
+          "Hello everyone. I owned the <strong>HR Jobs & Requisitions Track</strong>, connecting talent acquisition needs with public job discovery."
+        </p>
+        <ul class="bullet-list">
+          <li><strong>Public Job Discovery:</strong> Built an open, responsive careers portal featuring debounced keyword search, department filtering, and employment type toggles. Candidates can review requirements and apply directly.</li>
+          <li><strong>Requisition Lifecycle Management:</strong> HR managers have complete CRUD control over openings through four distinct lifecycle states: <span class="tech-highlight">DRAFT</span>, <span class="tech-highlight">PUBLISHED</span>, <span class="tech-highlight">CLOSED</span>, and <span class="tech-highlight">ARCHIVED</span>.</li>
+          <li><strong>Safety Constraints:</strong> Draft requisitions are strictly hidden from public view until formally published, preventing premature candidate applications.</li>
+        </ul>
+        <div class="handoff-box">
+          <strong>Handoff:</strong> <em>"Once candidates apply to published jobs, they land in our recruitment pipeline. I'll pass to <strong>Deepanshu</strong> to demonstrate our Kanban board."</em>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="page-break"></div>
+
+  <!-- SPEAKER 4: MEMBER 3 (DEEPANSHU) -->
+  <div class="speech-section">
+    <div class="speaker-card">
+      <div>
+        <div class="speaker-name">4. Deepanshu Bhatt</div>
+        <div class="speaker-role">Member 3 — Recruitment Pipeline & Analytics Lead (<span class="tech-highlight">HrPipelineBoard.jsx</span>, <span class="tech-highlight">HiringAnalyticsPage.jsx</span>)</div>
+      </div>
+      <div class="time-badge">2.5 – 3.0 Mins</div>
+    </div>
+
+    <div class="script-box">
+      <div class="script-title">Speaking Script</div>
+      <div class="speech-text">
+        <p>
+          "Thank you. I developed the <strong>Recruiter Kanban Pipeline & Analytics Module</strong>, which serves as the operational heart for talent acquisition teams."
+        </p>
+        <ul class="bullet-list">
+          <li><strong>Linear-Style Frameless Kanban Board:</strong> Inspired by top SaaS tools like Linear, our board eliminates visual clutter ('grid jail') and presents 6 clear stage tracks: Applied, Screening, Interview, Selected, Offered, and Rejected with colored status indicators.</li>
+          <li><strong>Multi-Dimensional Filtering:</strong> Built real-time candidate search by name or skills, dropdown filtering across all job requisitions, and specific stage isolation.</li>
+          <li><strong>Stage Transitions & Audit Dialog:</strong> Moving a candidate from one stage to another triggers a mandatory transition dialog capturing recruiter notes and timestamping the event in the audit trail.</li>
+          <li><strong>Candidate Activity History Drawer:</strong> Clicking any candidate opens a smooth slide-over drawer showing full contact details, resume download, and chronological activity logs.</li>
+          <li><strong>Hiring Analytics & KPIs:</strong> Pre-wired funnel conversion cards calculating total candidate volume, interview ratios, and offers extended.</li>
+        </ul>
+        <div class="handoff-box">
+          <strong>Handoff:</strong> <em>"To see how system governance, user permissions, and interview scheduling are managed, here is <strong>Shubham</strong>."</em>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- SPEAKER 5: MEMBER 4 (SHUBHAM) -->
+  <div class="speech-section">
+    <div class="speaker-card">
+      <div>
+        <div class="speaker-name">5. Shubham</div>
+        <div class="speaker-role">Member 4 — Administration, Interviews & Operations Lead (<span class="tech-highlight">AdminDashboard.jsx</span>, <span class="tech-highlight">interviews-offers/</span>)</div>
+      </div>
+      <div class="time-badge">2.0 – 2.5 Mins</div>
+    </div>
+
+    <div class="script-box">
+      <div class="script-title">Speaking Script</div>
+      <div class="speech-text">
+        <p>
+          "Hello everyone. I spearheaded the <strong>Administration, Interviews & Operations Module</strong>."
+        </p>
+        <ul class="bullet-list">
+          <li><strong>System Admin Console:</strong> Provides administrators with centralized governance over all platform users. Admins can view complete employee rosters, provision staff accounts, and toggle user active/inactive status.</li>
+          <li><strong>Dynamic Role Assignment:</strong> Allows instantaneous role modification between Admin, HR, and Candidate with immediate server-side session synchronization.</li>
+          <li><strong>Interview Operations & Scorecards:</strong> Built the interview coordination layout allowing HR to schedule interviews, generate video room links, and capture interviewer scorecard evaluations with 1-to-5 star ratings.</li>
+          <li><strong>Offer & Onboarding Roadmap:</strong> Designed the formal offer generator template and pre-hire onboarding checklist tracker.</li>
+        </ul>
+        <div class="handoff-box">
+          <strong>Handoff:</strong> <em>"Now I'll hand back to our Team Lead, <strong>Lokesh</strong>, for closing remarks and Q&A."</em>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="page-break"></div>
+
+  <!-- SPEAKER 6: CLOSING (TEAM LEAD) -->
+  <div class="speech-section">
+    <div class="speaker-card">
+      <div>
+        <div class="speaker-name">6. Closing & Technical Q&A (Lokesh)</div>
+        <div class="speaker-role">Team Lead & Principal Full-Stack Architect</div>
+      </div>
+      <div class="time-badge">1.5 – 2.0 Mins</div>
+    </div>
+
+    <div class="script-box">
+      <div class="script-title">Speaking Script</div>
+      <div class="speech-text">
+        <p>
+          "To summarize, <strong>Smart ATS</strong> demonstrates our team's ability to build production-ready software adhering to industry best practices:"
+        </p>
+        <ul class="bullet-list">
+          <li><strong>Conflict-Free Team Collaboration:</strong> We maintained strict domain isolation across independent feature branches, clean Pull Requests, and automated CI validation.</li>
+          <li><strong>Enterprise Security:</strong> Password hashing via bcrypt, SQL injection prevention via parameterized queries, JWT expiration, and robust RBAC checks.</li>
+          <li><strong>Production Ready:</strong> Clean builds, standardized CSS design tokens with full Dark Mode support, and 100% passing test suites.</li>
+        </ul>
+        <p>
+          "Thank you for your time. We are now happy to take any questions from the panel."
+        </p>
+      </div>
+    </div>
+  </div>
+
+  <!-- Pro Tips for Evaluator Questions -->
+  <div style="background: #f8fafc; border: 1px solid #cbd5e1; border-radius: 8px; padding: 12px 14px; margin-top: 20px;">
+    <h3 style="margin: 0 0 8px 0; font-size: 10pt; color: #1e293b; font-weight: 700;">Anticipated Questions & Best Answers</h3>
+    <div style="font-size: 8.5pt; color: #475569; line-height: 1.5;">
+      <p style="margin: 0 0 6px 0;"><strong>Q: How do you prevent candidates from accessing other candidates' resumes or stages?</strong><br>
+      <em>A: (Lokesh / Meghana)</em> Every file download and profile endpoint validates the JWT token. The SQL query strictly joins against <code>req.user.id</code>, and only authenticated users with role <code>HR</code> or <code>ADMIN</code> can view cross-candidate records.</p>
+
+      <p style="margin: 0;"><strong>Q: How did you manage git merge conflicts during team integration?</strong><br>
+      <em>A: (Lokesh)</em> We established strict module ownership in separate JSX files. When shared files like <code>App.css</code> or the Pipeline board had overlapping improvements, we reviewed diffs together, combined complementary CSS rules, and ensured the automated test suite passed before merging into <code>main</code>.</p>
+    </div>
+  </div>
+
+</body>
+</html>
