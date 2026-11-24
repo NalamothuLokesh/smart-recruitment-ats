@@ -162,7 +162,8 @@ E:\SR&ATS\
 │   ├── uploads/             # Private resume disk storage (excluded from public web)
 │   └── server.js            # Express application entrypoint
 ├── database/
-│   ├── migrations/          # 001_init_schema.sql (11 normalized tables)
+│   ├── migrations/          # Numbered, tracked SQL schema migrations
+│   ├── migrationRunner.js   # Applies pending migrations without reseeding data
 │   └── seed/                # seed_data.sql & automated synthetic seeder
 ├── docs/                    # API specifications, permission matrix, work distribution
 ├── frontend/
@@ -237,14 +238,19 @@ CLIENT_URL=http://localhost:5173
 
 ---
 
-### Step 3: Run Database Migrations & Synthetic Seed Data
+### Step 3: Initialize the Database with Demo Data
 ```bash
 npm run db:seed
 ```
-This script will:
+This command is for a fresh local setup or when you intentionally want to reset local data. It will:
 1. Ensure the `smart_ats_db` database exists with `utf8mb4_unicode_ci` encoding.
-2. Execute `database/migrations/001_init_schema.sql` creating all 11 tables with constraints and indexes.
-3. Populate synthetic test accounts, jobs, applications across all stages, scheduled interviews, and onboarding tasks.
+2. Apply all pending numbered migrations.
+3. Reset and populate synthetic test accounts, jobs, applications, interviews, and onboarding tasks.
+
+To update an existing database schema while preserving its data, run:
+```bash
+npm run db:migrate
+```
 
 ---
 

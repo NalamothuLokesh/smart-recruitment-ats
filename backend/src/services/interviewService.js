@@ -10,7 +10,7 @@ class InterviewService {
   async scheduleInterview(interviewerId, { applicationId, scheduledAt, durationMinutes = 45, meetingLink }) {
     // 1. Verify application exists
     const [apps] = await db.query(
-      `SELECT a.id, a.current_stage, a.candidate_id,
+      `SELECT a.id, a.current_stage, a.withdrawn_at, a.candidate_id,
               j.title as job_title, u.email as candidate_email, u.full_name as candidate_name
        FROM applications a
        JOIN jobs j ON a.job_id = j.id
@@ -26,6 +26,12 @@ class InterviewService {
     }
 
     const app = apps[0];
+
+    if (app.withdrawn_at) {
+      const error = new Error('An interview cannot be scheduled for a withdrawn application.');
+      error.statusCode = 409;
+      throw error;
+    }
 
     // 2. Insert interview
     const [result] = await db.query(

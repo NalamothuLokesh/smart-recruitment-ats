@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useLocation } from 'react-router-dom';
 import { applicationsApi, candidateApi, offersApi } from '../../api/client';
 import { useAuth } from '../../context/AuthContext';
+import { buildInterviewCalendarContent, groupInterviews } from './interviewUtils';
 import { 
   User, 
   Briefcase, 
@@ -14,11 +15,13 @@ import {
   ArrowRight,
   AlertCircle,
   Calendar,
+  CalendarPlus,
   MoreVertical,
   Share2,
   Copy,
   Mail,
-  Trash2
+  Trash2,
+  CircleX
 } from 'lucide-react';
 
 /**
@@ -45,10 +48,15 @@ import {
 export const CandidateDashboard = () => {
   const { user } = useAuth();
   const location = useLocation();
+  const candidateTimeZone = Intl.DateTimeFormat().resolvedOptions().timeZone || 'your local timezone';
   const [applications, setApplications] = useState([]);
-  const [applicationToDelete, setApplicationToDelete] = useState(null);
-  const [deletingApplicationId, setDeletingApplicationId] = useState(null);
-  const [applicationDeleteError, setApplicationDeleteError] = useState('');
+  const [applicationToWithdraw, setApplicationToWithdraw] = useState(null);
+  const [withdrawingApplicationId, setWithdrawingApplicationId] = useState(null);
+  const [withdrawalError, setWithdrawalError] = useState('');
+  const [withdrawalReason, setWithdrawalReason] = useState('');
+  const [applicationToDismiss, setApplicationToDismiss] = useState(null);
+  const [dismissingApplicationId, setDismissingApplicationId] = useState(null);
+  const [dismissalError, setDismissalError] = useState('');
   const [profile, setProfile] = useState(null);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState('');
@@ -66,7 +74,12 @@ export const CandidateDashboard = () => {
   const [feedback, setFeedback] = useState(() =>
     location.state?.registrationSuccess ? 'Your candidate account is ready. Welcome to Smart ATS.' : ''
   );
+  const [offerRespondingId, setOfferRespondingId] = useState(null);
+  const [offerRespondingDecision, setOfferRespondingDecision] = useState('');
+  const [offerResponseError, setOfferResponseError] = useState(null);
   const [activeOffer, setActiveOffer] = useState(null);
+  const [applicationSearch, setApplicationSearch] = useState('');
+  const [applicationStatusFilter, setApplicationStatusFilter] = useState('ALL');
 
   // Profile Edit State
   const [isEditingProfile, setIsEditingProfile] = useState(false);
@@ -173,13 +186,20 @@ export const CandidateDashboard = () => {
   };
 
   const handleRespondOffer = async (offerId, decision) => {
+    if (offerRespondingId !== null) return;
+    setOfferRespondingId(offerId);
+    setOfferRespondingDecision(decision);
+    setOfferResponseError(null);
     try {
       await offersApi.respondToOffer(offerId, decision);
+      await loadData();
       setFeedback(`You have ${decision.toLowerCase()} the offer!`);
       setActiveOffer(null);
-      loadData();
     } catch (err) {
-      alert(err.message);
+      setOfferResponseError({ offerId, message: err.message || 'Could not update your offer response. Please try again.' });
+    } finally {
+      setOfferRespondingId(null);
+      setOfferRespondingDecision('');
     }
   };
 
@@ -241,6 +261,25 @@ export const CandidateDashboard = () => {
     window.location.href = `mailto:?subject=${subject}&body=${body}`;
   };
 
+  const handleAddInterviewToCalendar = (application, interview) => {
+    try {
+      const calendarContent = buildInterviewCalendarContent(application.job_title, interview);
+      const file = new Blob([calendarContent], { type: 'text/calendar;charset=utf-8' });
+      const fileUrl = URL.createObjectURL(file);
+      const link = document.createElement('a');
+      const safeTitle = application.job_title.replace(/[^a-z0-9-_]+/gi, '-').replace(/^-|-$/g, '') || 'interview';
+      link.href = fileUrl;
+      link.download = `${safeTitle}-interview.ics`;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.setTimeout(() => URL.revokeObjectURL(fileUrl), 1000);
+      setFeedback('Calendar invite downloaded. Open it to add the interview and reminders to your calendar.');
+    } catch (err) {
+      setFeedback(err.message || 'Could not create the calendar invite.');
+    }
+  };
+
   const handleDeleteResume = async () => {
     if (!resumeToDelete || deletingResumeId !== null) return;
     setDeletingResumeId(resumeToDelete.id);
@@ -257,21 +296,59 @@ export const CandidateDashboard = () => {
     }
   };
 
-  const handleDeleteApplication = async () => {
-    if (!applicationToDelete || deletingApplicationId !== null) return;
-    setDeletingApplicationId(applicationToDelete.id);
-    setApplicationDeleteError('');
+  const handleWithdrawApplication = async () => {
+    if (!applicationToWithdraw || withdrawingApplicationId !== null) return;
+    setWithdrawingApplicationId(applicationToWithdraw.id);
+    setWithdrawalError('');
     try {
-      await applicationsApi.deleteMyApplication(applicationToDelete.id);
-      setFeedback(`Application for ${applicationToDelete.job_title} deleted.`);
-      setApplicationToDelete(null);
+      await applicationsApi.withdrawMyApplication(applicationToWithdraw.id, withdrawalReason.trim());
+      setFeedback(`Application for ${applicationToWithdraw.job_title} withdrawn. Its history has been kept.`);
+      setApplicationToWithdraw(null);
+      setWithdrawalReason('');
       await loadData();
     } catch (err) {
-      setApplicationDeleteError(err.message || 'Could not delete this application.');
+      setWithdrawalError(err.message || 'Could not withdraw this application.');
     } finally {
-      setDeletingApplicationId(null);
+      setWithdrawingApplicationId(null);
     }
   };
+
+  const handleDismissWithdrawnApplication = async () => {
+    if (!applicationToDismiss || dismissingApplicationId !== null) return;
+    setDismissingApplicationId(applicationToDismiss.id);
+    setDismissalError('');
+    try {
+      await applicationsApi.dismissWithdrawnApplication(applicationToDismiss.id);
+      setFeedback(`Application for ${applicationToDismiss.job_title} was removed from your list. Its hiring history is retained.`);
+      setApplicationToDismiss(null);
+      await loadData();
+    } catch (err) {
+      setDismissalError(err.message || 'Could not remove this application from your list. Please try again.');
+    } finally {
+      setDismissingApplicationId(null);
+    }
+  };
+
+  const getActiveApplicationCountForResume = (resumeId) => applications.filter(
+    (application) => !application.withdrawn_at && Number(application.resume_id) === Number(resumeId)
+  ).length;
+
+  const completedProfileItems = [
+    Boolean(profile?.phone),
+    profile?.experienceYears !== null && profile?.experienceYears !== undefined,
+    Boolean(profile?.skills?.length),
+    Boolean(profile?.linkedinUrl),
+    Boolean(profile?.resumes?.length)
+  ].filter(Boolean).length;
+  const profileCompletionPercent = Math.round((completedProfileItems / 5) * 100);
+  const filteredApplications = applications.filter((application) => {
+    const status = application.withdrawn_at ? 'WITHDRAWN' : application.current_stage;
+    const query = applicationSearch.trim().toLocaleLowerCase();
+    const matchesStatus = applicationStatusFilter === 'ALL' || status === applicationStatusFilter;
+    const matchesSearch = !query || [application.job_title, application.department, application.location]
+      .some((value) => value?.toLocaleLowerCase().includes(query));
+    return matchesStatus && matchesSearch;
+  });
 
   if (loading && !profile) {
     return (
@@ -306,18 +383,38 @@ export const CandidateDashboard = () => {
           <p className="text-xs text-slate-500 mt-1">
             Candidate ID #{user?.id} • {profile?.email || user?.email}
           </p>
+          <div className="mt-4 max-w-sm" aria-label={`Profile details ${profileCompletionPercent}% complete`}>
+            <div className="mb-1 flex items-center justify-between text-[11px]">
+              <span className="font-semibold text-slate-600">Profile details</span>
+              <span className="font-medium text-slate-500">{completedProfileItems}/5 added</span>
+            </div>
+            <div
+              className="h-1.5 overflow-hidden rounded-full bg-slate-100"
+              role="progressbar"
+              aria-valuemin={0}
+              aria-valuemax={100}
+              aria-valuenow={profileCompletionPercent}
+              aria-label="Candidate profile completeness"
+            >
+              <div
+                className="h-full rounded-full bg-indigo-600 transition-all"
+                style={{ width: `${profileCompletionPercent}%` }}
+              />
+            </div>
+          </div>
         </div>
 
-        <div className="flex items-center gap-3">
-          <label className="cursor-pointer px-4 py-2 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 rounded-lg text-xs font-semibold border border-indigo-200 flex items-center gap-2 transition-colors">
+        <div className="flex flex-wrap items-center gap-3">
+          <label htmlFor="candidate-resume-upload" className="cursor-pointer rounded-lg border border-indigo-200 bg-indigo-50 px-4 py-2 text-xs font-semibold text-indigo-700 transition-colors hover:bg-indigo-100 focus-within:ring-2 focus-within:ring-indigo-500">
             <Upload className="w-4 h-4 text-indigo-600" />
             {uploading ? 'Uploading...' : 'Upload New Resume'}
             <input
+              id="candidate-resume-upload"
               type="file"
               accept=".pdf,.doc,.docx"
               onChange={handleResumeUpload}
               disabled={uploading}
-              className="hidden"
+              className="sr-only"
             />
           </label>
 
@@ -418,24 +515,69 @@ export const CandidateDashboard = () => {
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Left Column: Applications Tracker */}
         <div className="lg:col-span-2 space-y-4">
-          <h2 className="text-lg font-bold text-slate-900 flex items-center gap-2">
-            <Briefcase className="w-5 h-5 text-indigo-600" />
-            My Active Applications ({applications.length})
-          </h2>
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <h2 className="text-lg font-bold text-slate-900 flex items-center gap-2">
+              <Briefcase className="w-5 h-5 text-indigo-600" />
+              My Applications <span className="text-sm font-medium text-slate-500">({filteredApplications.length} of {applications.length})</span>
+            </h2>
+            {applications.length > 0 && (
+              <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+                <div className="relative">
+                  <label htmlFor="application-search" className="sr-only">Search applications by job, department, or location</label>
+                  <input
+                    id="application-search"
+                    type="search"
+                    value={applicationSearch}
+                    onChange={(event) => setApplicationSearch(event.target.value)}
+                    placeholder="Search applications"
+                    className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-xs text-slate-800 outline-none placeholder:text-slate-400 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200"
+                  />
+                </div>
+                <div>
+                  <label htmlFor="application-status-filter" className="sr-only">Filter applications by status</label>
+                  <select
+                    id="application-status-filter"
+                    value={applicationStatusFilter}
+                    onChange={(event) => setApplicationStatusFilter(event.target.value)}
+                    className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-xs text-slate-800 outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200"
+                  >
+                    <option value="ALL">All statuses</option>
+                    {['APPLIED', 'SCREENING', 'INTERVIEW', 'SELECTED', 'OFFERED', 'REJECTED', 'WITHDRAWN'].map((status) => (
+                      <option key={status} value={status}>{status === 'APPLIED' ? 'Applied' : status.charAt(0) + status.slice(1).toLowerCase()}</option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+            )}
+          </div>
 
           {applications.length === 0 ? (
-            <div className="bg-white p-8 rounded-xl border border-slate-200 text-center space-y-3">
-              <p className="text-sm text-slate-500">You have not submitted any applications yet.</p>
+            <div className="rounded-xl border border-dashed border-slate-300 bg-white p-8 text-center" role="status">
+              <Briefcase className="mx-auto mb-3 h-8 w-8 text-indigo-500" aria-hidden="true" />
+              <h3 className="text-sm font-semibold text-slate-800">Your application list is empty</h3>
+              <p className="mx-auto mt-1 max-w-sm text-xs leading-relaxed text-slate-500">Explore open roles and apply when you find a good match. Your applications and updates will appear here.</p>
               <a
                 href="/jobs"
-                className="inline-block px-4 py-2 bg-indigo-600 text-white text-xs font-semibold rounded-lg"
+                className="mt-4 inline-flex min-h-10 items-center justify-center rounded-lg bg-indigo-600 px-4 py-2 text-xs font-semibold text-white hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2"
               >
                 Browse Open Positions
               </a>
             </div>
+          ) : filteredApplications.length === 0 ? (
+            <div className="rounded-xl border border-dashed border-slate-300 bg-white p-8 text-center" role="status" aria-live="polite">
+              <h3 className="text-sm font-semibold text-slate-800">No applications match these filters</h3>
+              <p className="mt-1 text-xs text-slate-500">Try another search term or status.</p>
+              <button
+                type="button"
+                onClick={() => { setApplicationSearch(''); setApplicationStatusFilter('ALL'); }}
+                className="mt-3 rounded-lg border border-slate-300 px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2"
+              >
+                Clear filters
+              </button>
+            </div>
           ) : (
-            applications.map((app) => (
-              <div key={app.id} className="bg-white p-6 rounded-xl border border-slate-200 shadow-sm space-y-4">
+            filteredApplications.map((app) => (
+              <div key={app.id} className={`bg-white p-6 rounded-xl border border-slate-200 shadow-sm space-y-4 ${app.withdrawn_at ? 'opacity-80' : ''}`}>
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-3 border-b border-slate-100">
                   <div>
                     <h3 className="text-base font-bold text-slate-900">{app.job_title}</h3>
@@ -445,23 +587,44 @@ export const CandidateDashboard = () => {
                   </div>
 
                   <div className="flex flex-wrap items-center gap-2 self-start">
+                    {app.withdrawn_at && app.job_status === 'PUBLISHED' && !applications.some(
+                      (otherApplication) => Number(otherApplication.job_id) === Number(app.job_id) && !otherApplication.withdrawn_at
+                    ) && (
+                      <a
+                        href={`/jobs?applyJob=${encodeURIComponent(app.job_id)}`}
+                        className="rounded-lg border border-indigo-200 bg-white px-2.5 py-1.5 text-[11px] font-semibold text-indigo-700 hover:bg-indigo-50"
+                      >
+                        Apply again
+                      </a>
+                    )}
+                    {app.withdrawn_at && (
+                      <button
+                        type="button"
+                        onClick={() => { setDismissalError(''); setApplicationToDismiss(app); }}
+                        className="inline-flex items-center gap-1 rounded-lg border border-slate-300 bg-white px-2.5 py-1.5 text-[11px] font-semibold text-slate-700 hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2"
+                        aria-label={`Remove withdrawn application for ${app.job_title} from your list`}
+                      >
+                        <Trash2 className="h-3.5 w-3.5" aria-hidden="true" /> Remove from list
+                      </button>
+                    )}
                     {Number(app.can_withdraw) === 1 && (
                       <button
                         type="button"
-                        onClick={() => { setApplicationDeleteError(''); setApplicationToDelete(app); }}
+                        onClick={() => { setWithdrawalError(''); setWithdrawalReason(''); setApplicationToWithdraw(app); }}
                         className="inline-flex items-center gap-1 rounded-lg border border-rose-200 bg-white px-2.5 py-1.5 text-[11px] font-semibold text-rose-700 hover:bg-rose-50"
-                        aria-label={`Delete application for ${app.job_title}`}
+                        aria-label={`Withdraw application for ${app.job_title}`}
                       >
-                        <Trash2 className="h-3.5 w-3.5" /> Delete application
+                        <CircleX className="h-3.5 w-3.5" /> Withdraw application
                       </button>
                     )}
-                    <span className={`text-xs font-bold px-3 py-1 rounded-full ${
+                    <span className={`text-xs font-bold px-3 py-1 rounded-full ${app.withdrawn_at
+                    ? 'bg-rose-100 text-rose-800' :
                     app.current_stage === 'OFFERED' ? 'bg-emerald-100 text-emerald-800' :
                     app.current_stage === 'INTERVIEW' ? 'bg-amber-100 text-amber-800' :
                     app.current_stage === 'REJECTED' ? 'bg-rose-100 text-rose-800' :
                     'bg-indigo-100 text-indigo-800'
                   }`}>
-                    STAGE: {app.current_stage}
+                    STAGE: {app.withdrawn_at ? 'WITHDRAWN' : app.current_stage}
                     </span>
                   </div>
                 </div>
@@ -477,19 +640,30 @@ export const CandidateDashboard = () => {
                       </div>
                     </div>
                     {app.offer_status === 'ISSUED' ? (
-                      <div className="flex items-center gap-2">
-                        <button
-                          onClick={() => handleRespondOffer(app.offer_id, 'ACCEPTED')}
-                          className="px-3 py-1 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-xs font-bold shadow-2xs"
-                        >
-                          Accept Offer
-                        </button>
-                        <button
-                          onClick={() => handleRespondOffer(app.offer_id, 'DECLINED')}
-                          className="px-3 py-1 bg-white hover:bg-slate-50 text-rose-700 border border-rose-200 rounded-lg text-xs font-medium"
-                        >
-                          Decline
-                        </button>
+                      <div className="space-y-2">
+                        {offerResponseError?.offerId === app.offer_id && (
+                          <p role="alert" className="text-xs text-rose-700">
+                            {offerResponseError.message}
+                          </p>
+                        )}
+                        <div className="flex items-center gap-2">
+                          <button
+                            type="button"
+                            onClick={() => handleRespondOffer(app.offer_id, 'ACCEPTED')}
+                            disabled={offerRespondingId !== null}
+                            className="px-3 py-1 bg-emerald-600 hover:bg-emerald-700 disabled:cursor-wait disabled:opacity-60 text-white rounded-lg text-xs font-bold shadow-2xs"
+                          >
+                            {offerRespondingId === app.offer_id && offerRespondingDecision === 'ACCEPTED' ? 'Accepting...' : 'Accept Offer'}
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => handleRespondOffer(app.offer_id, 'DECLINED')}
+                            disabled={offerRespondingId !== null}
+                            className="px-3 py-1 bg-white hover:bg-slate-50 disabled:cursor-wait disabled:opacity-60 text-rose-700 border border-rose-200 rounded-lg text-xs font-medium"
+                          >
+                            {offerRespondingId === app.offer_id && offerRespondingDecision === 'DECLINED' ? 'Declining...' : 'Decline'}
+                          </button>
+                        </div>
                       </div>
                     ) : (
                       <span className="text-xs font-bold uppercase text-emerald-800">
@@ -499,66 +673,178 @@ export const CandidateDashboard = () => {
                   </div>
                 )}
 
-                {/* Timeline Audit History */}
+                {/* Application stage tracker and audit history */}
                 <div>
-                  <h4 className="text-xs font-bold uppercase tracking-wider text-slate-500 mb-2">Stage Progression History</h4>
-                  <div className="space-y-2 border-l-2 border-slate-200 pl-3 ml-1 text-xs">
-                    {app.timeline?.map((t) => (
-                      <div key={t.id} className="relative">
-                        <div className="w-2 h-2 bg-indigo-600 rounded-full absolute -left-[17px] top-1" />
-                        <span className="font-semibold text-slate-800">{t.to_stage}: </span>
-                        <span className="text-slate-600">{t.notes}</span>
-                        <span className="text-[10px] text-slate-400 block">{new Date(t.changed_at).toLocaleString()}</span>
-                      </div>
-                    ))}
-                  </div>
+                  <h4 className="text-xs font-bold uppercase tracking-wider text-slate-500 mb-3">Application Timeline</h4>
+                  {(() => {
+                    const stages = ['APPLIED', 'SCREENING', 'INTERVIEW', 'SELECTED', 'OFFERED'];
+                    const reachedStages = new Set((app.timeline || []).map((event) => event.to_stage));
+                    reachedStages.add(app.current_stage);
+                    const terminalStage = app.withdrawn_at ? 'WITHDRAWN' : app.current_stage === 'REJECTED' ? 'REJECTED' : null;
+
+                    return (
+                      <>
+                        <ol className="grid grid-cols-2 gap-2 sm:grid-cols-5">
+                          {stages.map((stage) => {
+                            const reached = reachedStages.has(stage);
+                            const current = !terminalStage && app.current_stage === stage;
+                            const latestEvent = [...(app.timeline || [])].reverse().find((event) => event.to_stage === stage);
+                            return (
+                              <li key={stage} className={`rounded-lg border px-3 py-2 ${current
+                                ? 'border-indigo-300 bg-indigo-50'
+                                : reached ? 'border-emerald-200 bg-emerald-50' : 'border-slate-200 bg-slate-50'}`}>
+                                <div className={`text-[11px] font-bold ${current ? 'text-indigo-800' : reached ? 'text-emerald-800' : 'text-slate-500'}`}>
+                                  {reached ? '✓ ' : '○ '}{stage}
+                                  {current && <span className="ml-1 font-medium">· Current</span>}
+                                </div>
+                                {latestEvent && <time className="mt-1 block text-[10px] text-slate-500">{new Date(latestEvent.changed_at).toLocaleDateString()}</time>}
+                              </li>
+                            );
+                          })}
+                          {terminalStage && (
+                            <li className="rounded-lg border border-rose-200 bg-rose-50 px-3 py-2">
+                              <div className="text-[11px] font-bold text-rose-800">● {terminalStage}</div>
+                              <time className="mt-1 block text-[10px] text-rose-700">
+                                {new Date(app.withdrawn_at || (app.timeline || []).find((event) => event.to_stage === 'REJECTED')?.changed_at || app.updated_at).toLocaleDateString()}
+                              </time>
+                            </li>
+                          )}
+                        </ol>
+
+                        <details className="mt-3 rounded-lg border border-slate-200 bg-white px-3 py-2">
+                          <summary className="cursor-pointer text-xs font-semibold text-slate-700">View status update history</summary>
+                          {(app.timeline?.length > 0 || app.withdrawn_at) ? (
+                            <ol className="mt-3 space-y-3 border-l-2 border-slate-200 pl-3 text-xs">
+                              {app.timeline?.map((event) => {
+                                const wasWithdrawn = event.notes?.includes('withdrew this application');
+                                return (
+                                  <li key={event.id} className="relative">
+                                    <span className={`absolute -left-[17px] top-1 h-2 w-2 rounded-full ${wasWithdrawn ? 'bg-rose-500' : 'bg-indigo-600'}`} />
+                                    <div className="font-semibold text-slate-800">
+                                      {wasWithdrawn ? 'Application withdrawn' : event.from_stage ? `${event.from_stage} → ${event.to_stage}` : `Application ${event.to_stage.toLowerCase()}`}
+                                    </div>
+                                    {event.notes && !wasWithdrawn && <div className="mt-0.5 text-slate-600">{event.notes}</div>}
+                                    {wasWithdrawn && event.notes?.includes('Reason:') && (
+                                      <div className="mt-0.5 text-slate-600">Your reason: {event.notes.split('Reason:').slice(1).join('Reason:').trim()}</div>
+                                    )}
+                                    <time className="mt-0.5 block text-[10px] text-slate-400">{new Date(event.changed_at).toLocaleString()}</time>
+                                  </li>
+                                );
+                              })}
+                              {app.withdrawn_at && !(app.timeline || []).some((event) => event.notes?.includes('withdrew this application')) && (
+                                <li className="relative">
+                                  <span className="absolute -left-[17px] top-1 h-2 w-2 rounded-full bg-rose-500" />
+                                  <div className="font-semibold text-rose-800">Application withdrawn</div>
+                                  <time className="mt-0.5 block text-[10px] text-slate-400">{new Date(app.withdrawn_at).toLocaleString()}</time>
+                                </li>
+                              )}
+                            </ol>
+                          ) : (
+                            <p className="mt-2 text-xs text-slate-500">No status updates have been recorded yet.</p>
+                          )}
+                        </details>
+                      </>
+                    );
+                  })()}
                 </div>
 
                 {/* Candidate interview schedule */}
                 <div>
-                  <h4 className="text-xs font-bold uppercase tracking-wider text-slate-500 mb-2 flex items-center gap-2">
-                    <Calendar className="w-4 h-4 text-indigo-600" />
-                    Interview Schedule
-                  </h4>
-                  {app.interviews?.length ? (
-                    <div className="space-y-2">
-                      {app.interviews.map((interview) => (
-                        <div
-                          key={interview.id}
-                          className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 rounded-lg border border-slate-200 bg-slate-50 p-3"
-                        >
-                          <div className="min-w-0">
-                            <div className="flex flex-wrap items-center gap-2 text-xs font-semibold text-slate-800">
-                              <Calendar className="w-3.5 h-3.5 text-slate-500" />
-                              <span>{new Date(interview.scheduled_at).toLocaleString()}</span>
-                              <span className="rounded-full bg-indigo-100 px-2 py-0.5 text-[10px] font-bold uppercase text-indigo-800">
-                                {interview.status}
-                              </span>
-                            </div>
-                            <div className="mt-1 flex items-center gap-1.5 text-[11px] text-slate-500">
-                              <Clock className="w-3 h-3" />
-                              {interview.duration_minutes} minutes
-                            </div>
+                  {(() => {
+                    const interviews = app.interviews || [];
+                    const { upcoming, past, cancelled } = groupInterviews(interviews);
+                    const renderInterview = (interview, isUpcoming) => (
+                      <div
+                        key={interview.id}
+                        className="flex flex-col gap-3 rounded-lg border border-slate-200 bg-slate-50 p-3 sm:flex-row sm:items-center sm:justify-between"
+                      >
+                        <div className="min-w-0">
+                          <div className="flex flex-wrap items-center gap-2 text-xs font-semibold text-slate-800">
+                            <Calendar className="h-3.5 w-3.5 text-slate-500" aria-hidden="true" />
+                            <time dateTime={new Date(interview.scheduled_at).toISOString()}>
+                              {new Date(interview.scheduled_at).toLocaleString(undefined, {
+                                timeZone: candidateTimeZone,
+                                year: 'numeric', month: 'short', day: 'numeric',
+                                hour: 'numeric', minute: '2-digit', timeZoneName: 'short'
+                              })}
+                            </time>
+                            <span className={`rounded-full px-2 py-0.5 text-[10px] font-bold uppercase ${interview.status === 'CANCELLED' ? 'bg-rose-100 text-rose-800' : isUpcoming ? 'bg-indigo-100 text-indigo-800' : 'bg-slate-200 text-slate-700'}`}>
+                              {interview.status}
+                            </span>
                           </div>
-                          {interview.meeting_link && ['SCHEDULED', 'RESCHEDULED'].includes(interview.status) && (
-                            <a
-                              href={interview.meeting_link}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="inline-flex shrink-0 items-center justify-center gap-1.5 rounded-lg border border-indigo-200 bg-white px-3 py-2 text-xs font-semibold text-indigo-700 hover:bg-indigo-50"
-                            >
-                              Join interview
-                              <ArrowRight className="w-3.5 h-3.5" />
-                            </a>
+                          {interview.status === 'RESCHEDULED' && (
+                            <p className="mt-1 text-[11px] font-medium text-amber-700">Rescheduled — the time above is the latest schedule.</p>
                           )}
+                          {interview.status === 'CANCELLED' && (
+                            <p className="mt-1 text-[11px] font-medium text-rose-700">Cancelled — this interview will not take place.</p>
+                          )}
+                          <div className="mt-1 flex items-center gap-1.5 text-[11px] text-slate-500">
+                            <Clock className="h-3 w-3" aria-hidden="true" />
+                            {interview.duration_minutes} minutes
+                          </div>
                         </div>
-                      ))}
-                    </div>
-                  ) : (
-                    <p className="rounded-lg border border-dashed border-slate-200 px-3 py-2 text-xs text-slate-500">
-                      No interview scheduled yet.
-                    </p>
-                  )}
+                        {isUpcoming && (
+                          <div className="flex flex-wrap gap-2">
+                            {interview.meeting_link && (
+                              <a
+                                href={interview.meeting_link}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="inline-flex min-h-10 shrink-0 items-center justify-center gap-1.5 rounded-lg border border-indigo-200 bg-white px-3 py-2 text-xs font-semibold text-indigo-700 hover:bg-indigo-50 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2"
+                              >
+                                Join interview
+                                <ArrowRight className="h-3.5 w-3.5" aria-hidden="true" />
+                              </a>
+                            )}
+                            <button
+                              type="button"
+                              onClick={() => handleAddInterviewToCalendar(app, interview)}
+                              className="inline-flex min-h-10 shrink-0 items-center justify-center gap-1.5 rounded-lg border border-slate-300 bg-white px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-100 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2"
+                            >
+                              <CalendarPlus className="h-3.5 w-3.5" aria-hidden="true" /> Add to calendar
+                            </button>
+                          </div>
+                        )}
+                      </div>
+                    );
+
+                    if (interviews.length === 0) {
+                      return (
+                        <div className="rounded-lg border border-dashed border-slate-200 px-3 py-3 text-xs text-slate-500" role="status">
+                          <h4 className="font-semibold text-slate-700">Interview Schedule</h4>
+                          <p className="mt-1">No interview scheduled yet. If one is arranged, its date and details will appear here.</p>
+                        </div>
+                      );
+                    }
+
+                    return (
+                      <div className="space-y-4">
+                        <p className="text-[11px] text-slate-500">Interview times are shown in your local timezone: <span className="font-medium text-slate-700">{candidateTimeZone}</span></p>
+                        <section aria-label="Upcoming interviews">
+                          <h4 className="mb-2 flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-indigo-700">
+                            <Calendar className="h-4 w-4" aria-hidden="true" /> Upcoming interviews ({upcoming.length})
+                          </h4>
+                          {upcoming.length ? (
+                            <div className="space-y-2">{upcoming.map((interview) => renderInterview(interview, true))}</div>
+                          ) : (
+                            <p className="rounded-lg bg-slate-50 px-3 py-2 text-xs text-slate-500">No upcoming interviews scheduled.</p>
+                          )}
+                        </section>
+                        {past.length > 0 && (
+                          <section aria-label="Past interviews">
+                            <h4 className="mb-2 text-xs font-bold uppercase tracking-wider text-slate-500">Past interviews ({past.length})</h4>
+                            <div className="space-y-2">{past.map((interview) => renderInterview(interview, false))}</div>
+                          </section>
+                        )}
+                        {cancelled.length > 0 && (
+                          <section aria-label="Cancelled interviews">
+                            <h4 className="mb-2 text-xs font-bold uppercase tracking-wider text-rose-700">Cancelled interviews ({cancelled.length})</h4>
+                            <div className="space-y-2">{cancelled.map((interview) => renderInterview(interview, false))}</div>
+                          </section>
+                        )}
+                      </div>
+                    );
+                  })()}
                 </div>
               </div>
             ))
@@ -616,6 +902,11 @@ export const CandidateDashboard = () => {
                   <div className="text-[10px] text-slate-400">
                     {(resume.file_size_bytes / 1024).toFixed(1)} KB • {new Date(resume.uploaded_at).toLocaleDateString()}
                   </div>
+                  {getActiveApplicationCountForResume(resume.id) > 0 && (
+                    <div className="mt-1 text-[10px] font-medium text-indigo-700">
+                      Used in {getActiveApplicationCountForResume(resume.id)} active {getActiveApplicationCountForResume(resume.id) === 1 ? 'application' : 'applications'}
+                    </div>
+                  )}
                 </div>
 
                 <div className="flex shrink-0 items-center gap-1">
@@ -676,9 +967,14 @@ export const CandidateDashboard = () => {
               </div>
             ))}
             {profile?.resumes?.length === 0 && (
-              <p className="rounded-lg border border-dashed border-slate-200 px-3 py-4 text-center text-xs text-slate-500">
-                No resumes uploaded yet.
-              </p>
+              <div className="rounded-lg border border-dashed border-slate-300 px-4 py-5 text-center" role="status">
+                <FileText className="mx-auto mb-2 h-6 w-6 text-slate-400" aria-hidden="true" />
+                <p className="text-xs font-semibold text-slate-700">No resume in your vault yet</p>
+                <p className="mt-1 text-[11px] text-slate-500">Upload a PDF or Word document to attach it when applying.</p>
+                <label htmlFor="candidate-resume-upload" className="mt-3 inline-flex min-h-9 cursor-pointer items-center justify-center rounded-lg border border-indigo-200 bg-indigo-50 px-3 py-2 text-xs font-semibold text-indigo-700 hover:bg-indigo-100 focus-within:ring-2 focus-within:ring-indigo-500">
+                  {uploading ? 'Uploading...' : 'Choose a resume'}
+                </label>
+              </div>
             )}
           </div>
         </div>
@@ -688,7 +984,9 @@ export const CandidateDashboard = () => {
           <div role="dialog" aria-modal="true" aria-labelledby="delete-resume-title" className="w-full max-w-md rounded-2xl border border-slate-200 bg-white p-6 shadow-xl">
             <h3 id="delete-resume-title" className="text-lg font-bold text-slate-900">Delete this resume?</h3>
             <p className="mt-2 break-words text-sm text-slate-600">
-              “{resumeToDelete.original_filename}” will be removed from your vault. Applications that used it will remain, but will no longer link to this file.
+              “{resumeToDelete.original_filename}” will be removed from your vault. {getActiveApplicationCountForResume(resumeToDelete.id) > 0
+                ? `It is attached to ${getActiveApplicationCountForResume(resumeToDelete.id)} active ${getActiveApplicationCountForResume(resumeToDelete.id) === 1 ? 'application' : 'applications'}. Those applications will remain, but their resume attachment will be cleared.`
+                : 'Applications will remain in your history.'}
             </p>
             {resumeActionError && (
               <p role="alert" className="mt-4 rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-sm text-rose-700">
@@ -716,34 +1014,81 @@ export const CandidateDashboard = () => {
           </div>
         </div>
       )}
-      {applicationToDelete && (
+      {applicationToWithdraw && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 p-4" role="presentation">
-          <div role="dialog" aria-modal="true" aria-labelledby="delete-application-title" className="w-full max-w-md rounded-2xl border border-slate-200 bg-white p-6 shadow-xl">
-            <h3 id="delete-application-title" className="text-lg font-bold text-slate-900">Delete this application?</h3>
+          <div role="dialog" aria-modal="true" aria-labelledby="withdraw-application-title" className="w-full max-w-md rounded-2xl border border-slate-200 bg-white p-6 shadow-xl">
+            <h3 id="withdraw-application-title" className="text-lg font-bold text-slate-900">Withdraw this application?</h3>
             <p className="mt-2 text-sm text-slate-600">
-              Your application for <strong>{applicationToDelete.job_title}</strong> will be removed. You can do this only within 24 hours of applying, before the application has been reviewed or has hiring activity.
+              Your application for <strong>{applicationToWithdraw.job_title}</strong> will be marked withdrawn. Its application and review history will be retained. You can withdraw within 24 hours of applying, before it is reviewed or has hiring activity.
             </p>
-            {applicationDeleteError && (
+            <div className="mt-4">
+              <label htmlFor="withdrawal-reason" className="mb-1 block text-xs font-semibold text-slate-700">Reason <span className="font-normal text-slate-500">(optional)</span></label>
+              <textarea
+                id="withdrawal-reason"
+                value={withdrawalReason}
+                onChange={(event) => setWithdrawalReason(event.target.value.slice(0, 500))}
+                maxLength={500}
+                rows={3}
+                placeholder="Share a reason with the hiring team, if you’d like."
+                className="w-full resize-y rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-800 outline-none placeholder:text-slate-400 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200"
+                aria-describedby="withdrawal-reason-count"
+              />
+              <div id="withdrawal-reason-count" className="mt-1 text-right text-[10px] text-slate-500">{withdrawalReason.length}/500</div>
+            </div>
+            {withdrawalError && (
               <p role="alert" className="mt-4 rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-sm text-rose-700">
-                {applicationDeleteError}
+                {withdrawalError}
               </p>
             )}
             <div className="mt-6 flex justify-end gap-2">
               <button
                 type="button"
-                onClick={() => { setApplicationToDelete(null); setApplicationDeleteError(''); }}
-                disabled={deletingApplicationId !== null}
+                onClick={() => { setApplicationToWithdraw(null); setWithdrawalError(''); setWithdrawalReason(''); }}
+                disabled={withdrawingApplicationId !== null}
                 className="rounded-lg border border-slate-300 px-4 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50 disabled:opacity-60"
               >
                 Keep application
               </button>
               <button
                 type="button"
-                onClick={handleDeleteApplication}
-                disabled={deletingApplicationId !== null}
+                onClick={handleWithdrawApplication}
+                disabled={withdrawingApplicationId !== null}
                 className="rounded-lg bg-rose-600 px-4 py-2 text-xs font-semibold text-white hover:bg-rose-700 disabled:cursor-wait disabled:opacity-60"
               >
-                {deletingApplicationId !== null ? 'Deleting...' : 'Delete application'}
+                {withdrawingApplicationId !== null ? 'Withdrawing...' : 'Withdraw application'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+      {applicationToDismiss && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 p-4" role="presentation">
+          <div role="dialog" aria-modal="true" aria-labelledby="dismiss-application-title" className="w-full max-w-md rounded-2xl border border-slate-200 bg-white p-6 shadow-xl">
+            <h3 id="dismiss-application-title" className="text-lg font-bold text-slate-900">Remove withdrawn application?</h3>
+            <p className="mt-2 text-sm text-slate-600">
+              <strong>{applicationToDismiss.job_title}</strong> will no longer appear in your application list. The hiring team’s application and review history will be retained. If the job is still open, you can apply again from Job Openings.
+            </p>
+            {dismissalError && (
+              <p role="alert" className="mt-4 rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-sm text-rose-700">
+                {dismissalError}
+              </p>
+            )}
+            <div className="mt-6 flex justify-end gap-2">
+              <button
+                type="button"
+                onClick={() => { setApplicationToDismiss(null); setDismissalError(''); }}
+                disabled={dismissingApplicationId !== null}
+                className="min-h-10 rounded-lg border border-slate-300 px-4 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50 disabled:opacity-60"
+              >
+                Keep in list
+              </button>
+              <button
+                type="button"
+                onClick={handleDismissWithdrawnApplication}
+                disabled={dismissingApplicationId !== null}
+                className="min-h-10 rounded-lg bg-slate-800 px-4 py-2 text-xs font-semibold text-white hover:bg-slate-900 disabled:cursor-wait disabled:opacity-60"
+              >
+                {dismissingApplicationId !== null ? 'Removing...' : 'Remove from list'}
               </button>
             </div>
           </div>

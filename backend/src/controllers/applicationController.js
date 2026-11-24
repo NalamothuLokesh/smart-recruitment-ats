@@ -29,12 +29,25 @@ class ApplicationController {
     }
   }
 
-  async deleteMyApplication(req, res, next) {
+  async withdrawMyApplication(req, res, next) {
     try {
-      const result = await applicationService.deleteMyApplication(req.user.id, req.params.id);
+      const result = await applicationService.withdrawMyApplication(req.user.id, req.params.id, req.body.reason);
       res.status(200).json({
         success: true,
-        message: 'Application deleted successfully.',
+        message: 'Application withdrawn successfully. Its history has been retained.',
+        data: result
+      });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  async dismissWithdrawnApplication(req, res, next) {
+    try {
+      const result = await applicationService.dismissWithdrawnApplication(req.user.id, req.params.id);
+      res.status(200).json({
+        success: true,
+        message: 'Withdrawn application removed from your list. Its hiring history is retained.',
         data: result
       });
     } catch (error) {

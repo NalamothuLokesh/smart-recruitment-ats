@@ -6,6 +6,7 @@
   "scripts": {
     "install:all": "npm install && cd backend && npm install && cd ../frontend && npm install",
     "db:seed": "node database/seed/seed.js",
+    "db:migrate": "node database/migrate.js",
     "backend:dev": "cd backend && npm run dev",
     "backend:start": "cd backend && npm start",
     "frontend:dev": "cd frontend && npm run dev",

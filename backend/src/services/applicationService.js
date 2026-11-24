@@ -41,22 +41,33 @@ class ApplicationService {
 
     // 3. Check for existing duplicate application
     const [existing] = await db.query(
-      'SELECT id FROM applications WHERE job_id = ? AND candidate_id = ? LIMIT 1',
+      'SELECT id FROM applications WHERE job_id = ? AND candidate_id = ? AND withdrawn_at IS NULL LIMIT 1',
       [jobId, candidateId]
     );
 
     if (existing.length > 0) {
-      const error = new Error('You have already submitted an application for this position.');
+      const error = new Error('You have already submitted an active application for this position.');
       error.statusCode = 409;
       throw error;
     }
 
     // 4. Create application
-    const [result] = await db.query(
-      `INSERT INTO applications (job_id, candidate_id, resume_id, current_stage, applied_at, updated_at)
-       VALUES (?, ?, ?, 'APPLIED', NOW(), NOW())`,
-      [jobId, candidateId, resumeId || null]
-    );
+    let result;
+    try {
+      const [insertResult] = await db.query(
+        `INSERT INTO applications (job_id, candidate_id, resume_id, current_stage, applied_at, updated_at)
+         VALUES (?, ?, ?, 'APPLIED', NOW(), NOW())`,
+        [jobId, candidateId, resumeId || null]
+      );
+      result = insertResult;
+    } catch (error) {
+      if (error.code === 'ER_DUP_ENTRY') {
+        const duplicateError = new Error('You have already submitted an active application for this position.');
+        duplicateError.statusCode = 409;
+        throw duplicateError;
+      }
+      throw error;
+    }
 
     const applicationId = result.insertId;
 
@@ -90,19 +101,20 @@ class ApplicationService {
    */
   async getMyApplications(candidateId) {
     const [applications] = await db.query(
-      `SELECT a.id, a.job_id, a.resume_id, a.current_stage, a.applied_at, a.updated_at,
+      `SELECT a.id, a.job_id, a.resume_id, a.current_stage, a.applied_at, a.withdrawn_at, a.withdrawal_reason, a.updated_at,
               IF(a.current_stage = 'APPLIED'
+                 AND a.withdrawn_at IS NULL
                  AND a.applied_at > DATE_SUB(NOW(), INTERVAL 24 HOUR)
                  AND NOT EXISTS (SELECT 1 FROM interviews i WHERE i.application_id = a.id)
                  AND NOT EXISTS (SELECT 1 FROM offers o2 WHERE o2.application_id = a.id), 1, 0) AS can_withdraw,
-              j.title as job_title, j.department, j.location, j.employment_type,
+              j.title as job_title, j.department, j.location, j.employment_type, j.status as job_status,
               r.original_filename as resume_filename,
               o.id as offer_id, o.status as offer_status
        FROM applications a
        JOIN jobs j ON a.job_id = j.id
        LEFT JOIN resumes r ON a.resume_id = r.id
        LEFT JOIN offers o ON a.id = o.application_id
-       WHERE a.candidate_id = ?
+       WHERE a.candidate_id = ? AND a.dismissed_at IS NULL
        ORDER BY a.applied_at DESC`,
       [candidateId]
     );
@@ -137,17 +149,54 @@ class ApplicationService {
     return enhancedApps;
   }
 
+  /** Candidate hides an already withdrawn application from their own dashboard. */
+  async dismissWithdrawnApplication(candidateId, applicationId) {
+    const [applications] = await db.query(
+      `SELECT id, withdrawn_at, dismissed_at
+       FROM applications
+       WHERE id = ? AND candidate_id = ?
+       LIMIT 1`,
+      [applicationId, candidateId]
+    );
+
+    if (applications.length === 0) {
+      const error = new Error('Application not found.');
+      error.statusCode = 404;
+      throw error;
+    }
+
+    if (!applications[0].withdrawn_at) {
+      const error = new Error('Only withdrawn applications can be removed from your list.');
+      error.statusCode = 409;
+      throw error;
+    }
+
+    if (!applications[0].dismissed_at) {
+      await db.query(
+        `UPDATE applications
+         SET dismissed_at = NOW()
+         WHERE id = ? AND candidate_id = ? AND withdrawn_at IS NOT NULL AND dismissed_at IS NULL`,
+        [applicationId, candidateId]
+      );
+    }
+
+    return { id: Number(applicationId), hidden: true };
+  }
+
   /**
-   * Candidate deletes their own newly submitted application within 24 hours.
-   * Keep applications that have advanced or have related hiring activity.
+   * Candidate withdraws their own newly submitted application within 24 hours.
+   * Keep the application and its audit history for reporting and review.
    */
-  async deleteMyApplication(candidateId, applicationId) {
+  async withdrawMyApplication(candidateId, applicationId, reason = '') {
     const connection = await db.pool.getConnection();
+    let transactionStarted = false;
+    const trimmedReason = typeof reason === 'string' ? reason.trim().slice(0, 500) : '';
 
     try {
       await connection.beginTransaction();
+      transactionStarted = true;
       const [applications] = await connection.query(
-        `SELECT id, current_stage,
+        `SELECT id, current_stage, withdrawn_at,
                 (applied_at > DATE_SUB(NOW(), INTERVAL 24 HOUR)) AS within_window
          FROM applications
          WHERE id = ? AND candidate_id = ?
@@ -162,13 +211,18 @@ class ApplicationService {
       }
 
       const application = applications[0];
+      if (application.withdrawn_at) {
+        const error = new Error('This application has already been withdrawn.');
+        error.statusCode = 409;
+        throw error;
+      }
       if (!application.within_window) {
-        const error = new Error('Applications can only be deleted within 24 hours of submission.');
+        const error = new Error('Applications can only be withdrawn within 24 hours of submission.');
         error.statusCode = 403;
         throw error;
       }
       if (application.current_stage !== 'APPLIED') {
-        const error = new Error('This application can no longer be deleted because it has been reviewed.');
+        const error = new Error('This application can no longer be withdrawn because it has been reviewed.');
         error.statusCode = 409;
         throw error;
       }
@@ -180,19 +234,41 @@ class ApplicationService {
         [applicationId, applicationId]
       );
       if (relatedRecords[0].has_interviews || relatedRecords[0].has_offers) {
-        const error = new Error('This application has hiring activity and can no longer be deleted.');
+        const error = new Error('This application has hiring activity and can no longer be withdrawn.');
         error.statusCode = 409;
         throw error;
       }
 
+      const [updateResult] = await connection.query(
+        `UPDATE applications
+         SET withdrawn_at = NOW(), withdrawal_reason = ?, updated_at = NOW()
+         WHERE id = ? AND candidate_id = ? AND withdrawn_at IS NULL`,
+        [trimmedReason || null, applicationId, candidateId]
+      );
+      if (updateResult.affectedRows !== 1) {
+        const error = new Error('This application has already changed. Refresh and try again.');
+        error.statusCode = 409;
+        throw error;
+      }
       await connection.query(
-        'DELETE FROM applications WHERE id = ? AND candidate_id = ?',
-        [applicationId, candidateId]
+        `INSERT INTO application_audit_logs
+           (application_id, changed_by, from_stage, to_stage, notes, changed_at)
+         VALUES (?, ?, 'APPLIED', 'APPLIED', ?, NOW())`,
+        [applicationId, candidateId, trimmedReason
+          ? `Candidate withdrew this application. Reason: ${trimmedReason}`
+          : 'Candidate withdrew this application.']
       );
       await connection.commit();
-      return { id: Number(applicationId) };
+      transactionStarted = false;
+      return { id: Number(applicationId), withdrawn: true };
     } catch (error) {
-      await connection.rollback();
+      if (transactionStarted) {
+        try {
+          await connection.rollback();
+        } catch (rollbackError) {
+          console.error('Failed to roll back application withdrawal:', rollbackError);
+        }
+      }
       throw error;
     } finally {
       connection.release();
@@ -205,7 +281,7 @@ class ApplicationService {
   async listApplications({ jobId, stage, search, page = 1, limit = 20 }) {
     const offset = (Math.max(1, parseInt(page, 10)) - 1) * parseInt(limit, 10);
     const params = [];
-    const conditions = [];
+    const conditions = ['a.withdrawn_at IS NULL'];
 
     if (jobId) {
       conditions.push('a.job_id = ?');
@@ -288,7 +364,7 @@ class ApplicationService {
 
     // 1. Fetch current application state
     const [apps] = await db.query(
-      `SELECT a.id, a.current_stage, a.candidate_id, a.job_id,
+      `SELECT a.id, a.current_stage, a.withdrawn_at, a.candidate_id, a.job_id,
               j.title as job_title, u.email as candidate_email, u.full_name as candidate_name
        FROM applications a
        JOIN jobs j ON a.job_id = j.id
@@ -304,6 +380,11 @@ class ApplicationService {
     }
 
     const app = apps[0];
+    if (app.withdrawn_at) {
+      const error = new Error('A withdrawn application cannot be moved through the hiring pipeline.');
+      error.statusCode = 409;
+      throw error;
+    }
     const fromStage = app.current_stage;
 
     if (fromStage === toStage) {
@@ -348,7 +429,7 @@ class ApplicationService {
    */
   async getApplicationById(applicationId) {
     const [rows] = await db.query(
-      `SELECT a.id, a.job_id, a.candidate_id, a.resume_id, a.current_stage, a.applied_at, a.updated_at,
+      `SELECT a.id, a.job_id, a.candidate_id, a.resume_id, a.current_stage, a.applied_at, a.withdrawn_at, a.updated_at,
               j.title as job_title, j.department, j.location,
               u.full_name as candidate_name, u.email as candidate_email,
               r.original_filename as resume_filename

@@ -8,7 +8,7 @@ class AnalyticsService {
    */
   async getSummary({ jobId, startDate, endDate }) {
     const params = [];
-    const appConditions = [];
+    const appConditions = ['a.withdrawn_at IS NULL'];
 
     if (jobId) {
       appConditions.push('a.job_id = ?');

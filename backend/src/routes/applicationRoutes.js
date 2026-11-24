@@ -36,16 +36,33 @@ router.get(
 );
 
 /**
- * @route   DELETE /api/v1/applications/:id
- * @desc    Candidate deletes own new application within the first 24 hours
+ * @route   PATCH /api/v1/applications/:id/withdraw
+ * @desc    Candidate withdraws own new application within the first 24 hours
  * @access  CANDIDATE
  */
-router.delete(
-  '/:id',
+router.patch(
+  '/:id/withdraw',
+  requireAuth,
+  requireRole('CANDIDATE'),
+  [
+    param('id').isInt().withMessage('Application ID must be an integer.'),
+    body('reason').optional().trim().isLength({ max: 500 }).withMessage('Withdrawal reason must be 500 characters or fewer.'),
+    validate
+  ],
+  applicationController.withdrawMyApplication
+);
+
+/**
+ * @route   PATCH /api/v1/applications/:id/dismiss
+ * @desc    Candidate hides an already withdrawn application from their list
+ * @access  CANDIDATE
+ */
+router.patch(
+  '/:id/dismiss',
   requireAuth,
   requireRole('CANDIDATE'),
   [param('id').isInt().withMessage('Application ID must be an integer.'), validate],
-  applicationController.deleteMyApplication
+  applicationController.dismissWithdrawnApplication
 );
 
 /**

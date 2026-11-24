@@ -25,6 +25,7 @@ const app = require('../../backend/src/app');
 const config = require('../../backend/src/config/env');
 const applicationService = require('../../backend/src/services/applicationService');
 const candidateService = require('../../backend/src/services/candidateService');
+const notificationService = require('../../backend/src/services/notificationService');
 
 describe('ATS Backend Security, RBAC & Pipeline Test Suite', () => {
   let adminToken;
@@ -243,6 +244,11 @@ describe('ATS Backend Security, RBAC & Pipeline Test Suite', () => {
       expect(kpis.offerAcceptanceRate).toBe(0.0);
       expect(kpis.notificationDeliveryRate).toBe(100.0);
 
+      const applicationVolumeQuery = db.query.mock.calls.find(([sql]) =>
+        typeof sql === 'string' && sql.includes('FROM applications a') && sql.includes('total_applications')
+      );
+      expect(applicationVolumeQuery[0]).toContain('a.withdrawn_at IS NULL');
+
       expect(funnel.conversionRates.appliedToScreening).toBe(0.0);
       expect(funnel.conversionRates.screeningToInterview).toBe(0.0);
       expect(funnel.conversionRates.interviewToSelected).toBe(0.0);
@@ -254,7 +260,7 @@ describe('ATS Backend Security, RBAC & Pipeline Test Suite', () => {
     });
   });
 
-  describe('4. Candidate Application Deletion Window', () => {
+  describe('4. Candidate Application Withdrawal Window', () => {
     let connection;
 
     beforeEach(() => {
@@ -268,54 +274,117 @@ describe('ATS Backend Security, RBAC & Pipeline Test Suite', () => {
       db.pool.getConnection.mockResolvedValue(connection);
     });
 
-    test('deletes an owned, unreviewed application inside the 24-hour window', async () => {
+    test('withdraws an owned, unreviewed application inside the 24-hour window and records its history', async () => {
       connection.query
-        .mockResolvedValueOnce([[{ id: 41, current_stage: 'APPLIED', within_window: 1 }]])
+        .mockResolvedValueOnce([[{ id: 41, current_stage: 'APPLIED', withdrawn_at: null, within_window: 1 }]])
         .mockResolvedValueOnce([[{ has_interviews: 0, has_offers: 0 }]])
-        .mockResolvedValueOnce([{ affectedRows: 1 }]);
+        .mockResolvedValueOnce([{ affectedRows: 1 }])
+        .mockResolvedValueOnce([{ insertId: 100 }]);
 
-      await expect(applicationService.deleteMyApplication(7, 41)).resolves.toEqual({ id: 41 });
+      await expect(applicationService.withdrawMyApplication(7, 41, 'Accepted another offer')).resolves.toEqual({ id: 41, withdrawn: true });
 
       expect(connection.query).toHaveBeenNthCalledWith(1, expect.stringContaining('candidate_id = ?'), [41, 7]);
-      expect(connection.query).toHaveBeenNthCalledWith(3, expect.stringContaining('DELETE FROM applications'), [41, 7]);
+      expect(connection.query).toHaveBeenNthCalledWith(3, expect.stringContaining('withdrawal_reason = ?'), ['Accepted another offer', 41, 7]);
+      expect(connection.query).toHaveBeenNthCalledWith(4, expect.stringContaining('INSERT INTO application_audit_logs'), [41, 7, 'Candidate withdrew this application. Reason: Accepted another offer']);
       expect(connection.commit).toHaveBeenCalledTimes(1);
       expect(connection.rollback).not.toHaveBeenCalled();
       expect(connection.release).toHaveBeenCalledTimes(1);
     });
 
-    test('rejects deletion after 24 hours', async () => {
+    test('rejects withdrawal after 24 hours', async () => {
       connection.query.mockResolvedValueOnce([[
-        { id: 41, current_stage: 'APPLIED', within_window: 0 }
+        { id: 41, current_stage: 'APPLIED', withdrawn_at: null, within_window: 0 }
       ]]);
 
-      await expect(applicationService.deleteMyApplication(7, 41)).rejects.toMatchObject({ statusCode: 403 });
+      await expect(applicationService.withdrawMyApplication(7, 41)).rejects.toMatchObject({ statusCode: 403 });
       expect(connection.query).toHaveBeenCalledTimes(1);
       expect(connection.commit).not.toHaveBeenCalled();
       expect(connection.rollback).toHaveBeenCalledTimes(1);
     });
 
-    test('does not allow deleting another candidate’s application', async () => {
+    test('does not allow withdrawing another candidate’s application', async () => {
       connection.query.mockResolvedValueOnce([[]]);
 
-      await expect(applicationService.deleteMyApplication(7, 41)).rejects.toMatchObject({ statusCode: 404 });
+      await expect(applicationService.withdrawMyApplication(7, 41)).rejects.toMatchObject({ statusCode: 404 });
       expect(connection.query).toHaveBeenCalledTimes(1);
       expect(connection.commit).not.toHaveBeenCalled();
       expect(connection.rollback).toHaveBeenCalledTimes(1);
     });
 
-    test('preserves applications that have moved beyond the initial stage', async () => {
+    test('preserves reviewed applications from withdrawal', async () => {
       connection.query.mockResolvedValueOnce([[
-        { id: 41, current_stage: 'SCREENING', within_window: 1 }
+        { id: 41, current_stage: 'SCREENING', withdrawn_at: null, within_window: 1 }
       ]]);
 
-      await expect(applicationService.deleteMyApplication(7, 41)).rejects.toMatchObject({ statusCode: 409 });
+      await expect(applicationService.withdrawMyApplication(7, 41)).rejects.toMatchObject({ statusCode: 409 });
       expect(connection.query).toHaveBeenCalledTimes(1);
       expect(connection.commit).not.toHaveBeenCalled();
       expect(connection.rollback).toHaveBeenCalledTimes(1);
+    });
+
+    test('does not withdraw an application that has already been withdrawn', async () => {
+      connection.query.mockResolvedValueOnce([[
+        { id: 41, current_stage: 'APPLIED', withdrawn_at: '2026-11-17 10:00:00', within_window: 1 }
+      ]]);
+
+      await expect(applicationService.withdrawMyApplication(7, 41)).rejects.toMatchObject({ statusCode: 409 });
+      expect(connection.query).toHaveBeenCalledTimes(1);
+      expect(connection.commit).not.toHaveBeenCalled();
     });
   });
 
-  describe('5. Candidate Resume Deletion', () => {
+  describe('5. Reapply After Withdrawal', () => {
+    test('allows a new application when only a withdrawn application exists', async () => {
+      const notificationSpy = jest.spyOn(notificationService, 'sendNotification').mockResolvedValue(null);
+      db.query
+        .mockResolvedValueOnce([[{ id: 9, title: 'Product Designer', status: 'PUBLISHED' }]])
+        .mockResolvedValueOnce([[]])
+        .mockResolvedValueOnce([{ insertId: 98 }])
+        .mockResolvedValueOnce([{ insertId: 198 }])
+        .mockResolvedValueOnce([[{ email: 'candidate@example.com', full_name: 'Test Candidate' }]])
+        .mockResolvedValueOnce([[{ id: 98, job_id: 9, candidate_id: 7, current_stage: 'APPLIED' }]])
+        .mockResolvedValueOnce([[]]);
+
+      await expect(applicationService.applyToJob(7, { jobId: 9, resumeId: null })).resolves.toMatchObject({
+        id: 98,
+        current_stage: 'APPLIED'
+      });
+
+      expect(db.query.mock.calls[1][0]).toContain('withdrawn_at IS NULL');
+      expect(db.query.mock.calls[2][0]).toContain('INSERT INTO applications');
+      expect(notificationSpy).toHaveBeenCalledTimes(1);
+      notificationSpy.mockRestore();
+    });
+  });
+
+  describe('6. Candidate hides withdrawn application', () => {
+    test('hides only the candidate-owned withdrawn application and keeps its history', async () => {
+      db.query
+        .mockResolvedValueOnce([[{ id: 41, withdrawn_at: '2026-11-22 09:00:00', dismissed_at: null }]])
+        .mockResolvedValueOnce([{ affectedRows: 1 }]);
+
+      await expect(applicationService.dismissWithdrawnApplication(7, 41)).resolves.toEqual({ id: 41, hidden: true });
+      expect(db.query.mock.calls[0][0]).toContain('candidate_id = ?');
+      expect(db.query.mock.calls[1][0]).toContain('dismissed_at = NOW()');
+      expect(db.query.mock.calls[1][0]).toContain('withdrawn_at IS NOT NULL');
+    });
+
+    test('does not hide an active application', async () => {
+      db.query.mockResolvedValueOnce([[{ id: 41, withdrawn_at: null, dismissed_at: null }]]);
+
+      await expect(applicationService.dismissWithdrawnApplication(7, 41)).rejects.toMatchObject({ statusCode: 409 });
+      expect(db.query).toHaveBeenCalledTimes(1);
+    });
+
+    test('does not expose another candidate’s application for hiding', async () => {
+      db.query.mockResolvedValueOnce([[]]);
+
+      await expect(applicationService.dismissWithdrawnApplication(7, 41)).rejects.toMatchObject({ statusCode: 404 });
+      expect(db.query).toHaveBeenCalledTimes(1);
+    });
+  });
+
+  describe('7. Candidate Resume Deletion', () => {
     let connection;
     let uploadDirectory;
     const originalUploadDirectory = config.UPLOAD_DIR;
