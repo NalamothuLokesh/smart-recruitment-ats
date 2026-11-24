@@ -1,6 +1,6 @@
 /**
  * Database Seed & Migration Runner
- * Executes 001_init_schema.sql and seed_data.sql against MySQL
+ * Applies numbered migrations, then resets data to seed_data.sql
  */
 
 const fs = require('fs');
@@ -18,6 +18,7 @@ function resolveModule(moduleName) {
 
 const mysql = resolveModule('mysql2/promise');
 const dotenv = resolveModule('dotenv');
+const { runMigrations } = require('../migrationRunner');
 
 // Load environment variables from backend/.env or root .env
 const envPaths = [
@@ -68,16 +69,9 @@ async function runSeed() {
     connection = await mysql.createConnection(config);
     console.log(`✅ Connected to database '${config.database}'`);
 
-    // 3. Run migration schema
-    const schemaPath = path.resolve(__dirname, '../migrations/001_init_schema.sql');
-    if (fs.existsSync(schemaPath)) {
-      console.log('🚀 Executing Schema Migration: 001_init_schema.sql...');
-      const schemaSql = fs.readFileSync(schemaPath, 'utf8');
-      await connection.query(schemaSql);
-      console.log('✅ Tables initialized successfully.');
-    } else {
-      console.warn(`⚠️ Schema file not found at: ${schemaPath}`);
-    }
+    // 3. Apply schema migrations before seeding/resetting sample data.
+    await runMigrations(connection);
+    console.log('✅ Database schema is up to date.');
 
     // 4. Run seed data
     const seedPath = path.resolve(__dirname, 'seed_data.sql');

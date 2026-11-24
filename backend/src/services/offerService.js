@@ -16,7 +16,7 @@ class OfferService {
   async generateOffer(generatedById, { applicationId, salaryOffered, joiningDate, offerLetterContent, status = 'ISSUED' }) {
     // 1. Verify application exists
     const [apps] = await db.query(
-      `SELECT a.id, a.current_stage, a.candidate_id, a.job_id,
+      `SELECT a.id, a.current_stage, a.withdrawn_at, a.candidate_id, a.job_id,
               j.title as job_title, u.email as candidate_email, u.full_name as candidate_name
        FROM applications a
        JOIN jobs j ON a.job_id = j.id
@@ -32,6 +32,12 @@ class OfferService {
     }
 
     const app = apps[0];
+
+    if (app.withdrawn_at) {
+      const error = new Error('An offer cannot be generated for a withdrawn application.');
+      error.statusCode = 409;
+      throw error;
+    }
 
     // Must be in SELECTED stage (or already OFFERED for revision)
     if (!['SELECTED', 'OFFERED'].includes(app.current_stage)) {
