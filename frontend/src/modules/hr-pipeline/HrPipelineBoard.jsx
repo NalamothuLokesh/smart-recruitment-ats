@@ -58,6 +58,7 @@ export const HrPipelineBoard = () => {
   const [applications, setApplications] = useState([]);
   const [jobs, setJobs] = useState([]);
   const [selectedJobId, setSelectedJobId] = useState('');
+  const [selectedStage, setSelectedStage] = useState('');
   const [search, setSearch] = useState('');
   const [loading, setLoading] = useState(true);
   const [activeCandidate, setActiveCandidate] = useState(null);
@@ -98,6 +99,7 @@ export const HrPipelineBoard = () => {
       const [appRes, jobRes] = await Promise.all([
         applicationsApi.listApplications({
           ...(selectedJobId ? { jobId: selectedJobId } : {}),
+          ...(selectedStage ? { stage: selectedStage } : {}),
           ...(search.trim() ? { search: search.trim() } : {}),
           limit: 100
         }),
@@ -113,9 +115,10 @@ export const HrPipelineBoard = () => {
     }
   };
 
+  // Reload when job or stage filter changes
   useEffect(() => {
     loadPipeline();
-  }, [selectedJobId]);
+  }, [selectedJobId, selectedStage]);
 
   // Fetch candidate activity history
   const handleOpenActivityHistory = async () => {
@@ -167,7 +170,6 @@ export const HrPipelineBoard = () => {
       setTransitioningApp(null);
       await loadPipeline();
 
-      // Update the selected candidate details if their stage changed
       if (activeCandidate?.id === transitioningApp.id) {
         setActiveCandidate((previous) => ({
           ...previous,
@@ -220,6 +222,7 @@ export const HrPipelineBoard = () => {
             />
           </div>
 
+          {/* Job Filter */}
           <select
             value={selectedJobId}
             onChange={(e) => setSelectedJobId(e.target.value)}
@@ -229,6 +232,21 @@ export const HrPipelineBoard = () => {
             {jobs.map((j) => (
               <option key={j.id} value={j.id}>
                 {j.title} ({j.department})
+              </option>
+            ))}
+          </select>
+
+          {/* Stage Filter */}
+          <select
+            value={selectedStage}
+            onChange={(e) => setSelectedStage(e.target.value)}
+            className="px-3 py-1.5 border border-slate-300 dark:border-slate-700 rounded-lg text-xs sm:text-sm bg-white dark:bg-[#161b22] text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-indigo-500 cursor-pointer"
+          >
+            <option value="">All Stages</option>
+
+            {PIPELINE_STAGES.map((stage) => (
+              <option key={stage.id} value={stage.id}>
+                {stage.label}
               </option>
             ))}
           </select>

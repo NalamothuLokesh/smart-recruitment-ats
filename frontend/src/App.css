@@ -1044,7 +1044,6 @@
   outline-offset: 0;
   box-shadow: none !important;
 }
-}
 .auth-inp::placeholder {
   color: var(--muted-foreground);
 }
