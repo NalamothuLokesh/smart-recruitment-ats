@@ -18,9 +18,18 @@ import {
   WifiOff,
   AlertCircle,
   Briefcase,
-  KeyRound
+  KeyRound,
+  Calendar,
+  Gift,
+  CheckSquare,
+  ShieldAlert
 } from 'lucide-react';
 import UserManagement from './UserManagement';
+import AuditLogView from './AuditLogView';
+import AdminInterviewScheduler from './AdminInterviewScheduler';
+import AdminOfferGenerator from './AdminOfferGenerator';
+import AdminOnboardingTracker from './AdminOnboardingTracker';
+import AdminRbacVerification from './AdminRbacVerification';
 import './admin.css';
 
 // Baseline fallback dataset for offline/mock development mode
@@ -208,7 +217,8 @@ const SAMPLE_AUDIT_LOGS = [
 export const AdminDashboard = () => {
   const [users, setUsers] = useState(SAMPLE_USERS);
   const [auditLogs, setAuditLogs] = useState(SAMPLE_AUDIT_LOGS);
-  const [activeTab, setActiveTab] = useState('users'); // 'users' | 'activity' | 'provision'
+  const [activeTab, setActiveTab] = useState('users'); // 'users' | 'activity' | 'interviews' | 'offers' | 'rbac' | 'provision'
+  const [offersSubTab, setOffersSubTab] = useState('generator'); // 'generator' | 'onboarding'
   const [loading, setLoading] = useState(true);
   const [isLiveApi, setIsLiveApi] = useState(false);
   const [bannerNotice, setBannerNotice] = useState('');
@@ -388,11 +398,11 @@ export const AdminDashboard = () => {
                   System Administration Console
                 </h1>
                 <span className="text-[11px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-primary/10 border border-primary/25 text-primary">
-                  Member 4 · W1
+                  Member 4 · W1–W4 Complete
                 </span>
               </div>
               <p className="text-xs sm:text-sm text-muted-foreground mt-0.5">
-                Manage organization identity, user access controls, RBAC roles, and operational audit trails.
+                Manage organization identity, user access controls, RBAC roles, interviews, offers, and operational audit trails.
               </p>
             </div>
           </div>
@@ -427,17 +437,18 @@ export const AdminDashboard = () => {
           </div>
 
           {/* Module Tabs */}
-          <div className="flex bg-muted p-1 rounded-xl border border-border">
+          <div className="flex bg-muted p-1 rounded-xl border border-border flex-wrap gap-1">
             <button
               type="button"
               onClick={() => setActiveTab('users')}
-              className={`px-3 py-1.5 rounded-lg text-xs sm:text-sm font-semibold transition-colors ${
+              className={`px-3 py-1.5 rounded-lg text-xs sm:text-sm font-semibold transition-colors flex items-center gap-1.5 ${
                 activeTab === 'users'
                   ? 'bg-card text-foreground shadow-sm'
                   : 'text-muted-foreground hover:text-foreground'
               }`}
             >
-              User Directory
+              <Users className="w-3.5 h-3.5" />
+              <span>User Directory</span>
             </button>
             <button
               type="button"
@@ -453,14 +464,51 @@ export const AdminDashboard = () => {
             </button>
             <button
               type="button"
+              onClick={() => setActiveTab('interviews')}
+              className={`px-3 py-1.5 rounded-lg text-xs sm:text-sm font-semibold transition-colors flex items-center gap-1.5 ${
+                activeTab === 'interviews'
+                  ? 'bg-card text-foreground shadow-sm'
+                  : 'text-muted-foreground hover:text-foreground'
+              }`}
+            >
+              <Calendar className="w-3.5 h-3.5" />
+              <span>Interviews</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => setActiveTab('offers')}
+              className={`px-3 py-1.5 rounded-lg text-xs sm:text-sm font-semibold transition-colors flex items-center gap-1.5 ${
+                activeTab === 'offers'
+                  ? 'bg-card text-foreground shadow-sm'
+                  : 'text-muted-foreground hover:text-foreground'
+              }`}
+            >
+              <Gift className="w-3.5 h-3.5" />
+              <span>Offers & Onboarding</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => setActiveTab('rbac')}
+              className={`px-3 py-1.5 rounded-lg text-xs sm:text-sm font-semibold transition-colors flex items-center gap-1.5 ${
+                activeTab === 'rbac'
+                  ? 'bg-card text-foreground shadow-sm'
+                  : 'text-muted-foreground hover:text-foreground'
+              }`}
+            >
+              <ShieldCheck className="w-3.5 h-3.5" />
+              <span>RBAC Matrix</span>
+            </button>
+            <button
+              type="button"
               onClick={() => setActiveTab('provision')}
-              className={`px-3 py-1.5 rounded-lg text-xs sm:text-sm font-semibold transition-colors ${
+              className={`px-3 py-1.5 rounded-lg text-xs sm:text-sm font-semibold transition-colors flex items-center gap-1.5 ${
                 activeTab === 'provision'
                   ? 'bg-card text-foreground shadow-sm'
                   : 'text-muted-foreground hover:text-foreground'
               }`}
             >
-              + Provision Staff
+              <UserPlus className="w-3.5 h-3.5" />
+              <span>+ Provision Staff</span>
             </button>
           </div>
         </div>
@@ -607,101 +655,78 @@ export const AdminDashboard = () => {
         </div>
       )}
 
-      {/* ── TAB 2: Recent User Activity & Audit Trail (Requirement 3.A) ───── */}
+      {/* ── TAB 2: Recent User Activity & System Audit Trail (W2 Requirements) ── */}
       {activeTab === 'activity' && (
-        <div className="space-y-4">
-          <div className="p-4 rounded-xl bg-card border border-border shadow-sm flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+        <AuditLogView
+          auditLogs={auditLogs}
+          loading={loading}
+          onRefresh={loadAuditLogs}
+        />
+      )}
+
+      {/* ── TAB 3: Interview Scheduling & Scorecards (W3 Requirements) ──────── */}
+      {activeTab === 'interviews' && (
+        <AdminInterviewScheduler />
+      )}
+
+      {/* ── TAB 4: Offer Letters & Pre-Hire Onboarding (W3 & W4 Requirements) ─ */}
+      {activeTab === 'offers' && (
+        <div className="space-y-6 animate-fadeIn">
+          <div className="p-4 rounded-xl bg-card border border-border shadow-sm flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
             <div>
-              <h2 className="text-lg font-bold text-foreground">
-                Recent User Activity & Audit Log
-              </h2>
-              <p className="text-xs text-muted-foreground">
-                Immutable chronological log of authentication, role alterations, and pipeline stage changes.
+              <div className="flex items-center gap-2">
+                <Gift className="w-5 h-5 text-primary" />
+                <h2 className="text-lg font-bold text-foreground">
+                  Offers & Pre-Hire Onboarding Operations
+                </h2>
+              </div>
+              <p className="text-xs text-muted-foreground mt-0.5">
+                Generate formal compensation letters with live Markdown preview, and monitor pre-hire checklist completion.
               </p>
             </div>
-            <button
-              type="button"
-              onClick={loadAuditLogs}
-              className="btn btn-outline btn-sm flex items-center gap-1.5 self-start sm:self-auto"
-            >
-              <RefreshCw className="w-3.5 h-3.5" />
-              <span>Refresh Log</span>
-            </button>
-          </div>
 
-          <div className="admin-table-shell">
-            <div className="admin-table-wrapper">
-              <table className="admin-table">
-                <thead>
-                  <tr>
-                    <th scope="col" style={{ width: '170px' }}>Timestamp</th>
-                    <th scope="col">Candidate / Target</th>
-                    <th scope="col">Operation / Transition</th>
-                    <th scope="col">Executed By</th>
-                    <th scope="col">Audit Notes</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {auditLogs.length === 0 ? (
-                    <tr>
-                      <td colSpan={5} className="py-10 text-center text-xs text-muted-foreground">
-                        No audit log events recorded yet.
-                      </td>
-                    </tr>
-                  ) : (
-                    auditLogs.map((log) => (
-                      <tr key={log.id} className="hover:bg-muted/50 transition-colors">
-                        <td className="text-xs text-muted-foreground whitespace-nowrap font-mono">
-                          <div className="flex items-center gap-1.5">
-                            <Clock className="w-3.5 h-3.5 text-muted-foreground" />
-                            <span>{new Date(log.changed_at).toLocaleString()}</span>
-                          </div>
-                        </td>
-                        <td>
-                          <div className="font-semibold text-foreground text-xs">
-                            {log.candidate_name}
-                          </div>
-                          {log.job_title && (
-                            <div className="text-[11px] text-muted-foreground">
-                              {log.job_title}
-                            </div>
-                          )}
-                        </td>
-                        <td>
-                          <div className="inline-flex items-center gap-1.5 text-xs font-mono">
-                            <span className="text-muted-foreground">
-                              {log.from_stage || 'INIT'}
-                            </span>
-                            <span className="text-primary font-bold">→</span>
-                            <span className="font-bold text-foreground px-1.5 py-0.5 rounded bg-primary/10 border border-primary/20">
-                              {log.to_stage}
-                            </span>
-                          </div>
-                        </td>
-                        <td>
-                          <div className="text-xs">
-                            <span className="font-semibold text-foreground">
-                              {log.changed_by_name}
-                            </span>{' '}
-                            <span className={`admin-role-badge admin-role-${log.changed_by_role} text-[10px] py-0 px-1 ml-1`}>
-                              {log.changed_by_role}
-                            </span>
-                          </div>
-                        </td>
-                        <td className="text-xs text-muted-foreground max-w-sm truncate">
-                          {log.notes || '—'}
-                        </td>
-                      </tr>
-                    ))
-                  )}
-                </tbody>
-              </table>
+            <div className="flex items-center bg-muted p-1 rounded-xl border border-border self-start sm:self-auto">
+              <button
+                type="button"
+                onClick={() => setOffersSubTab('generator')}
+                className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all flex items-center gap-1.5 ${
+                  offersSubTab === 'generator'
+                    ? 'bg-card text-foreground shadow-sm'
+                    : 'text-muted-foreground hover:text-foreground'
+                }`}
+              >
+                <Gift className="w-3.5 h-3.5" />
+                <span>Offer Letter Generator</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setOffersSubTab('onboarding')}
+                className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all flex items-center gap-1.5 ${
+                  offersSubTab === 'onboarding'
+                    ? 'bg-card text-foreground shadow-sm'
+                    : 'text-muted-foreground hover:text-foreground'
+                }`}
+              >
+                <CheckSquare className="w-3.5 h-3.5" />
+                <span>Onboarding Checklist</span>
+              </button>
             </div>
           </div>
+
+          {offersSubTab === 'generator' ? (
+            <AdminOfferGenerator />
+          ) : (
+            <AdminOnboardingTracker />
+          )}
         </div>
       )}
 
-      {/* ── TAB 3: Provision Staff Account ──────────────────────────────────── */}
+      {/* ── TAB 5: Live RBAC Route & Security Verification (W4 Requirements) ── */}
+      {activeTab === 'rbac' && (
+        <AdminRbacVerification />
+      )}
+
+      {/* ── TAB 6: Provision Staff Account ──────────────────────────────────── */}
       {activeTab === 'provision' && (
         <div className="max-w-2xl mx-auto p-6 rounded-2xl bg-card border border-border shadow-md space-y-6 animate-fadeIn">
           <div className="border-b border-border pb-4">

@@ -8,8 +8,11 @@ import {
   ShieldAlert,
   CheckCircle,
   AlertCircle,
-  Info
+  Info,
+  Power,
+  AlertTriangle
 } from 'lucide-react';
+import { useAuth } from '../../context/AuthContext';
 import { UserTable } from './UserTable';
 import { RoleAssignment } from './RoleAssignment';
 import { UserDetailsModal } from './UserDetailsModal';
@@ -24,6 +27,8 @@ export const UserManagement = ({
   onProvisionUser,
   className = '',
 }) => {
+  const { user: currentUser } = useAuth();
+
   // Search & Filter State
   const [searchQuery, setSearchQuery] = useState('');
   const [roleFilter, setRoleFilter] = useState(''); // '' | 'ADMIN' | 'HR' | 'CANDIDATE'
@@ -40,6 +45,7 @@ export const UserManagement = ({
   // Modals State
   const [viewingUser, setViewingUser] = useState(null);
   const [editingRoleUser, setEditingRoleUser] = useState(null);
+  const [statusConfirmTarget, setStatusConfirmTarget] = useState(null);
   const [roleSaving, setRoleSaving] = useState(false);
   const [togglingUserId, setTogglingUserId] = useState(null);
 
@@ -74,7 +80,7 @@ export const UserManagement = ({
         return false;
       }
 
-      // Search keyword filter (name or email)
+      // Search keyword filter (name or email or #id)
       if (searchQuery.trim()) {
         const query = searchQuery.toLowerCase().trim();
         const nameMatch = u.full_name?.toLowerCase().includes(query);
@@ -112,7 +118,6 @@ export const UserManagement = ({
   const totalUsers = sortedUsers.length;
   const totalPages = Math.max(1, Math.ceil(totalUsers / pageSize));
 
-  // Reset page if filters exceed total pages
   React.useEffect(() => {
     if (page > totalPages) {
       setPage(1);
@@ -124,7 +129,6 @@ export const UserManagement = ({
     return sortedUsers.slice(start, start + pageSize);
   }, [sortedUsers, page, pageSize]);
 
-  // Handle Sort Toggle
   const handleSort = (field) => {
     if (sortField === field) {
       setSortOrder((prev) => (prev === 'asc' ? 'desc' : 'asc'));
@@ -150,8 +154,31 @@ export const UserManagement = ({
     }
   };
 
-  // Handle Status Toggle Action
-  const handleToggleStatus = async (userId, currentStatus) => {
+  // Trigger Status Toggle: Prompts confirmation on deactivation, checks self-lockout
+  const handleRequestStatusToggle = (userId, currentStatus) => {
+    // 1. Safety check: prevent deactivating own active administrator account
+    if (currentUser && currentUser.id === userId && currentStatus) {
+      addToast(
+        'Security Protection: You cannot deactivate your own active administrative account to prevent system lockout.',
+        'error'
+      );
+      return;
+    }
+
+    const targetUser = users.find((u) => u.id === userId);
+    if (!targetUser) return;
+
+    // 2. If deactivating an active user, prompt modal confirmation
+    if (currentStatus) {
+      setStatusConfirmTarget(targetUser);
+    } else {
+      // 3. Reactivating can execute directly
+      executeStatusToggle(userId, false);
+    }
+  };
+
+  // Execute Status Toggle Action
+  const executeStatusToggle = async (userId, currentStatus) => {
     try {
       setTogglingUserId(userId);
       await onToggleStatus(userId, !currentStatus);
@@ -162,6 +189,7 @@ export const UserManagement = ({
       if (viewingUser && viewingUser.id === userId) {
         setViewingUser((prev) => ({ ...prev, is_active: !currentStatus }));
       }
+      setStatusConfirmTarget(null);
     } catch (err) {
       addToast(err.message || 'Failed to alter user account status.', 'error');
     } finally {
@@ -287,7 +315,7 @@ export const UserManagement = ({
         </div>
       </div>
 
-      {/* Filter Results Summary when filters are applied */}
+      {/* Filter Results Summary */}
       {hasActiveFilters && (
         <div className="flex items-center justify-between text-xs text-muted-foreground px-1">
           <span>
@@ -320,7 +348,7 @@ export const UserManagement = ({
         onSort={handleSort}
         onViewUser={(user) => setViewingUser(user)}
         onEditRole={(user) => setEditingRoleUser(user)}
-        onToggleStatus={handleToggleStatus}
+        onToggleStatus={handleRequestStatusToggle}
         loading={loading}
         togglingUserId={togglingUserId}
         onResetFilters={handleResetFilters}
@@ -347,9 +375,89 @@ export const UserManagement = ({
             setViewingUser(null);
             setEditingRoleUser(user);
           }}
-          onToggleStatus={handleToggleStatus}
+          onToggleStatus={handleRequestStatusToggle}
           actionLoading={Boolean(togglingUserId)}
         />
+      )}
+
+      {/* ── Deactivation Confirmation Modal (W2 Requirement) ──────────────── */}
+      {statusConfirmTarget && (
+        <div
+          className="admin-modal-backdrop"
+          role="dialog"
+          aria-modal="true"
+          onClick={(e) => {
+            if (e.target === e.currentTarget && !togglingUserId) setStatusConfirmTarget(null);
+          }}
+        >
+          <div className="admin-modal-dialog max-w-md">
+            <div className="admin-modal-header bg-rose-500/10 border-b border-rose-500/20">
+              <div className="flex items-center gap-2 text-rose-400">
+                <AlertTriangle className="w-5 h-5" />
+                <h3 className="text-base font-bold text-foreground">Confirm Account Deactivation</h3>
+              </div>
+              <button
+                type="button"
+                onClick={() => setStatusConfirmTarget(null)}
+                className="text-muted-foreground hover:text-foreground p-1"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <div className="admin-modal-body space-y-4">
+              <p className="text-xs text-foreground/90 leading-relaxed">
+                Are you sure you want to suspend and deactivate access for{' '}
+                <strong className="text-foreground">{statusConfirmTarget.full_name}</strong>?
+              </p>
+
+              <div className="p-3.5 rounded-xl bg-card-elevated border border-border text-xs space-y-1.5">
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">User ID:</span>
+                  <span className="font-mono font-semibold text-foreground">#{statusConfirmTarget.id}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Email:</span>
+                  <span className="font-semibold text-foreground">{statusConfirmTarget.email}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Assigned Role:</span>
+                  <span className={`admin-role-badge admin-role-${statusConfirmTarget.role} text-[10px] py-0 px-1.5`}>
+                    {statusConfirmTarget.role}
+                  </span>
+                </div>
+              </div>
+
+              <div className="p-3 rounded-lg bg-rose-500/10 border border-rose-500/20 text-rose-400 text-xs flex items-start gap-2">
+                <ShieldAlert className="w-4 h-4 flex-shrink-0 mt-0.5" />
+                <span>
+                  Deactivating this account immediately blocks authentication and invalidates active platform sessions.
+                  You can reactivate this user at any time from this directory.
+                </span>
+              </div>
+            </div>
+
+            <div className="admin-modal-footer">
+              <button
+                type="button"
+                disabled={Boolean(togglingUserId)}
+                onClick={() => setStatusConfirmTarget(null)}
+                className="btn btn-outline btn-sm"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                disabled={Boolean(togglingUserId)}
+                onClick={() => executeStatusToggle(statusConfirmTarget.id, true)}
+                className="px-4 py-1.5 rounded-lg text-xs font-semibold bg-rose-600 hover:bg-rose-700 text-white shadow-sm transition-colors flex items-center gap-1.5"
+              >
+                <Power className="w-3.5 h-3.5" />
+                <span>{togglingUserId ? 'Deactivating...' : 'Confirm Deactivation'}</span>
+              </button>
+            </div>
+          </div>
+        </div>
       )}
 
       {/* Toast Notification Container */}
