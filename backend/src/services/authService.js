@@ -235,6 +235,29 @@ class AuthService {
   }
 
   /**
+   * Verify registration email PIN independently
+   */
+  async verifyPin(email, pin) {
+    const normalizedEmail = email.toLowerCase().trim();
+    const [vRows] = await db.query(
+      'SELECT id FROM email_verifications WHERE email = ? AND otp_code = ? AND expires_at > NOW() ORDER BY id DESC LIMIT 1',
+      [normalizedEmail, pin.trim()]
+    );
+
+    if (vRows.length === 0) {
+      const error = new Error('Invalid or expired verification PIN.');
+      error.statusCode = 400;
+      throw error;
+    }
+
+    await db.query('UPDATE email_verifications SET is_verified = TRUE WHERE id = ?', [vRows[0].id]);
+    return {
+      success: true,
+      message: 'Email PIN verified successfully.'
+    };
+  }
+
+  /**
    * Request password reset code
    */
   async requestPasswordReset(email) {

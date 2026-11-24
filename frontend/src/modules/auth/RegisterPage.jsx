@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { authApi } from '../../api/client';
+import { EmailPinModal } from './EmailPinModal';
 import {
   UserCheck,
   Mail,
@@ -29,17 +30,18 @@ export const RegisterPage = () => {
     phone: '',
     experienceYears: '',
     skills: '',
-    linkedinUrl: '',
-    verificationCode: ''
+    linkedinUrl: ''
   });
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
-  const [otpSent, setOtpSent] = useState(false);
-  const [otpSending, setOtpSending] = useState(false);
-  const [devOtp, setDevOtp] = useState('');
-  const [isEmailVerified, setIsEmailVerified] = useState(false);
+
+  // Email PIN Modal Window State
+  const [showPinModal, setShowPinModal] = useState(false);
+  const [modalLoading, setModalLoading] = useState(false);
+  const [modalError, setModalError] = useState('');
+  const [devPin, setDevPin] = useState('');
 
   const { register } = useAuth();
   const navigate = useNavigate();
@@ -49,32 +51,7 @@ export const RegisterPage = () => {
     if (error) setError("");
   };
 
-  const handleSendVerificationCode = async () => {
-    if (!formData.email || !formData.email.includes('@')) {
-      setError('Please enter a valid email address first.');
-      return;
-    }
-
-    setError('');
-    setOtpSending(true);
-
-    try {
-      const res = await authApi.sendVerificationOtp(formData.email.trim());
-      setOtpSent(true);
-      if (res.data?.otpCode) {
-        setDevOtp(res.data.otpCode);
-      }
-    } catch (err) {
-      setError(
-        err.response?.data?.message ||
-        err.message ||
-        'Failed to send verification code.'
-      );
-    } finally {
-      setOtpSending(false);
-    }
-  };
-
+  // Step 1: Validate Form and Open Email PIN Verification Window
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError('');
@@ -92,6 +69,31 @@ export const RegisterPage = () => {
     setLoading(true);
 
     try {
+      // Dispatch 6-digit PIN to candidate email
+      const res = await authApi.sendVerificationOtp(formData.email.trim());
+      if (res.data?.otpCode) {
+        setDevPin(res.data.otpCode);
+      }
+      setModalError('');
+      // Open dedicated PIN verification window
+      setShowPinModal(true);
+    } catch (err) {
+      setError(
+        err.response?.data?.message ||
+        err.message ||
+        'Failed to initiate email verification.'
+      );
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Step 2: User Enters PIN in Modal Window and Completes Registration
+  const handleVerifyPinAndComplete = async (pin) => {
+    setModalLoading(true);
+    setModalError('');
+
+    try {
       const skillsArray = formData.skills
         .split(',')
         .map((s) => s.trim())
@@ -102,18 +104,41 @@ export const RegisterPage = () => {
         email: formData.email,
         password: formData.password,
         confirmPassword: formData.confirmPassword,
-        verificationCode: formData.verificationCode || undefined,
+        verificationCode: pin,
         phone: formData.phone,
         experienceYears: parseFloat(formData.experienceYears) || 0,
         skills: skillsArray,
         linkedinUrl: formData.linkedinUrl.trim() || undefined
       });
 
+      setShowPinModal(false);
       navigate('/candidate', { replace: true, state: { registrationSuccess: true } });
     } catch (err) {
-      setError(err.message || 'Registration failed.');
+      setModalError(
+        err.response?.data?.message ||
+        err.message ||
+        'Verification failed. Invalid or expired PIN.'
+      );
     } finally {
-      setLoading(false);
+      setModalLoading(false);
+    }
+  };
+
+  // Resend PIN handler
+  const handleResendPin = async () => {
+    setModalError('');
+    try {
+      const res = await authApi.sendVerificationOtp(formData.email.trim());
+      if (res.data?.otpCode) {
+        setDevPin(res.data.otpCode);
+      }
+    } catch (err) {
+      setModalError(
+        err.response?.data?.message ||
+        err.message ||
+        'Failed to resend PIN.'
+      );
+      throw err;
     }
   };
 
@@ -167,77 +192,14 @@ export const RegisterPage = () => {
               </div>
             </div>
             <div className="auth-field">
-              <div className="flex justify-between items-center mb-1">
-                <label className="auth-label mb-0">Email Address <span className="auth-required">*</span></label>
-                {!isEmailVerified && (
-                  <button
-                    type="button"
-                    onClick={handleSendVerificationCode}
-                    disabled={otpSending || !formData.email}
-                    className="text-xs font-semibold text-indigo-600 dark:text-indigo-400 hover:underline disabled:opacity-50"
-                  >
-                    {otpSending ? 'Sending...' : otpSent ? 'Resend code' : 'Verify email'}
-                  </button>
-                )}
-                {isEmailVerified && (
-                  <span className="text-xs font-semibold text-emerald-600 dark:text-emerald-400 flex items-center gap-1">
-                    <CheckCircle2 size={12} /> Verified
-                  </span>
-                )}
-              </div>
+              <label className="auth-label">Email Address <span className="auth-required">*</span></label>
               <div className="auth-inp-wrap">
                 <input className="auth-inp" type="email" required autoComplete="email" name="email" value={formData.email} onChange={handleChange} placeholder="jane.doe@example.com" />
               </div>
             </div>
           </div>
 
-          {/* Email Verification OTP Prompt */}
-          {otpSent && !isEmailVerified && (
-            <div className="p-3 my-2 rounded-xl bg-indigo-50/70 dark:bg-indigo-950/40 border border-indigo-200 dark:border-indigo-800 space-y-2 animate-fadeIn">
-              <div className="flex items-center justify-between text-xs">
-                <span className="font-semibold text-indigo-900 dark:text-indigo-200">6-Digit Verification Code</span>
-                {devOtp && (
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setFormData((prev) => ({ ...prev, verificationCode: devOtp }));
-                      setIsEmailVerified(true);
-                    }}
-                    className="text-[11px] font-mono font-bold text-amber-700 dark:text-amber-300 bg-amber-100 dark:bg-amber-900/60 px-2 py-0.5 rounded hover:underline"
-                    title="Click to auto-verify"
-                  >
-                    Code: {devOtp} (Click to auto-verify)
-                  </button>
-                )}
-              </div>
-              <div className="flex gap-2">
-                <div className="auth-inp-wrap flex-1 min-h-[42px]">
-                  <input
-                    className="auth-inp font-mono font-bold tracking-widest text-center"
-                    type="text"
-                    maxLength={6}
-                    placeholder="123456"
-                    name="verificationCode"
-                    value={formData.verificationCode}
-                    onChange={handleChange}
-                  />
-                </div>
-                <button
-                  type="button"
-                  onClick={() => {
-                    if (formData.verificationCode.length === 6) {
-                      setIsEmailVerified(true);
-                    }
-                  }}
-                  className="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-xs font-semibold"
-                >
-                  Confirm Code
-                </button>
-              </div>
-            </div>
-          )}
-
-          {/* Password & Password Verification / Confirm Password */}
+          {/* Password & Verify Password */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div className="auth-field">
               <label className="auth-label">Password <span className="auth-required">*</span></label>
@@ -331,14 +293,15 @@ export const RegisterPage = () => {
               <input className="auth-inp" type="text" name="skills" value={formData.skills} onChange={handleChange} placeholder="React, Node.js, MySQL" />
             </div>
           </div>
+
           <button className="btn btn-primary auth-btn" type="submit" disabled={loading} aria-busy={loading}>
             {loading ? (
               <>
-                <Loader2 size={16} className="spin" /> Creating Profile...
+                <Loader2 size={16} className="spin" /> Sending Verification PIN...
               </>
             ) : (
               <>
-                <span>Complete Registration</span> <ArrowRight size={16} />
+                <span>Continue to Email Verification</span> <ArrowRight size={16} />
               </>
             )}
           </button>
@@ -352,6 +315,18 @@ export const RegisterPage = () => {
         </div>
         </div>
       </div>
+
+      {/* Email PIN Verification Modal Window */}
+      <EmailPinModal
+        isOpen={showPinModal}
+        email={formData.email}
+        devPin={devPin}
+        loading={modalLoading}
+        error={modalError}
+        onClose={() => setShowPinModal(false)}
+        onVerify={handleVerifyPinAndComplete}
+        onResend={handleResendPin}
+      />
     </div>
   );
 };

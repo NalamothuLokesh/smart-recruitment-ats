@@ -46,6 +46,7 @@ export const authApi = {
   login: (credentials) => apiClient.post('/auth/login', credentials),
   getMe: () => apiClient.get('/auth/me'),
   sendVerificationOtp: (email) => apiClient.post('/auth/send-verification-otp', { email }),
+  verifyPin: (email, pin) => apiClient.post('/auth/verify-pin', { email, pin }),
   forgotPassword: (email) => apiClient.post('/auth/forgot-password', { email }),
   resetPassword: (payload) => apiClient.post('/auth/reset-password', payload)
 };

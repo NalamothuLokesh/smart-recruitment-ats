@@ -49,6 +49,21 @@ router.post(
 );
 
 /**
+ * @route   POST /api/v1/auth/verify-pin
+ * @desc    Verify email verification PIN
+ * @access  Public
+ */
+router.post(
+  '/verify-pin',
+  [
+    body('email').trim().isEmail().withMessage('Valid email is required.').normalizeEmail(),
+    body('pin').trim().notEmpty().withMessage('PIN is required.').isLength({ min: 6, max: 6 }).withMessage('PIN must be 6 digits.'),
+    validate
+  ],
+  authController.verifyPin
+);
+
+/**
  * @route   POST /api/v1/auth/forgot-password
  * @desc    Request password reset OTP code
  * @access  Public

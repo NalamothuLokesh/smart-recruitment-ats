@@ -56,6 +56,16 @@ class AuthController {
     }
   }
 
+  async verifyPin(req, res, next) {
+    try {
+      const { email, pin } = req.body;
+      const result = await authService.verifyPin(email, pin);
+      res.status(200).json(result);
+    } catch (error) {
+      next(error);
+    }
+  }
+
   async login(req, res, next) {
     try {
       const { email, password } = req.body;
