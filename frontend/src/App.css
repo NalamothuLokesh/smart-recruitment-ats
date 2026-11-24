@@ -1037,9 +1037,13 @@
   font-family: inherit;
 }
 .auth-inp:focus,
-.auth-inp:focus-visible {
+.auth-inp:focus-visible,
+.auth-inp-wrap .auth-inp:focus,
+.auth-inp-wrap .auth-inp:focus-visible {
   outline: none !important;
+  outline-offset: 0;
   box-shadow: none !important;
+}
 }
 .auth-inp::placeholder {
   color: var(--muted-foreground);
