@@ -15,6 +15,8 @@ import {
   Server,
   Layers
 } from 'lucide-react';
+import axios from 'axios';
+import apiClient from '../../api/client';
 import { useAuth } from '../../context/AuthContext';
 
 const RBAC_RULES = [
@@ -179,25 +181,76 @@ export const AdminRbacVerification = ({ className = '' }) => {
   const [testResults, setTestResults] = useState(null);
   const [testing, setTesting] = useState(false);
 
-  const runRbacAuditTest = () => {
+  const runRbacAuditTest = async () => {
     setTesting(true);
-    // Simulate automated audit check against active session & matrix
-    setTimeout(() => {
-      setTestResults({
-        passed: 14,
-        failed: 0,
-        currentRole: user?.role || 'ADMIN',
-        timestamp: new Date().toISOString(),
-        checks: [
-          { check: 'Candidate Route Isolation', status: 'PASS', details: 'Unauthenticated / unauthorized users denied' },
-          { check: 'Recruitment Ops Boundary', status: 'PASS', details: 'Candidates strictly rejected from pipeline & jobs API' },
-          { check: 'Admin Superuser Guard', status: 'PASS', details: 'Only ADMIN role permitted on /admin/users & audit endpoints' },
-          { check: 'JWT Bearer Interceptor', status: 'PASS', details: 'Bearer token injected and verified on protected endpoints' },
-          { check: 'Uploads Storage Isolation', status: 'PASS', details: 'Resume downloads verified through authorization middleware' }
-        ]
-      });
-      setTesting(false);
-    }, 600);
+    const role = user?.role || 'PUBLIC';
+    const baseUrl = apiClient.defaults.baseURL || 'http://localhost:5000/api/v1';
+
+    const probe = async (label, fn, expectedPass) => {
+      try {
+        const res = await fn();
+        const status = res?.status || 200;
+        const ok = expectedPass(status);
+        return {
+          check: label,
+          status: ok ? 'PASS' : 'FAIL',
+          details: `HTTP ${status} received from backend`
+        };
+      } catch (err) {
+        const status = err?.status || err?.response?.status || 0;
+        const ok = status > 0 && expectedPass(status);
+        return {
+          check: label,
+          status: ok ? 'PASS' : 'FAIL',
+          details: status > 0 ? `HTTP ${status} (${err.message || 'Rejected'})` : `Network Error: ${err.message}`
+        };
+      }
+    };
+
+    const checks = await Promise.all([
+      probe(
+        'Unauthenticated Guard (/admin/users without JWT)',
+        () => axios.get(`${baseUrl}/admin/users`),
+        (s) => s === 401
+      ),
+      probe(
+        'JWT Session Identity (/auth/me)',
+        () => apiClient.get('/auth/me'),
+        (s) => s === 200
+      ),
+      probe(
+        'Admin Directory Guard (/admin/users)',
+        () => apiClient.get('/admin/users?limit=1'),
+        (s) => (role === 'ADMIN' ? s === 200 : s === 403)
+      ),
+      probe(
+        'Admin Audit Logs Guard (/admin/audit-logs)',
+        () => apiClient.get('/admin/audit-logs?limit=1'),
+        (s) => (role === 'ADMIN' ? s === 200 : s === 403)
+      ),
+      probe(
+        'Candidate-Only Applications Guard (/applications/my)',
+        () => apiClient.get('/applications/my'),
+        (s) => (role === 'CANDIDATE' ? s === 200 : s === 403)
+      ),
+      probe(
+        'HR/Admin Recruitment Analytics Guard (/analytics/summary)',
+        () => apiClient.get('/analytics/summary'),
+        (s) => (role === 'ADMIN' || role === 'HR' ? s === 200 : s === 403)
+      )
+    ]);
+
+    const passed = checks.filter((c) => c.status === 'PASS').length;
+    const failed = checks.length - passed;
+
+    setTestResults({
+      passed,
+      failed,
+      currentRole: role,
+      timestamp: new Date().toISOString(),
+      checks
+    });
+    setTesting(false);
   };
 
   return (

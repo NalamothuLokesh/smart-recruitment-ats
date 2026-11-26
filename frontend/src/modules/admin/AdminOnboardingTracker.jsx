@@ -18,68 +18,30 @@ import {
 } from 'lucide-react';
 
 export const AdminOnboardingTracker = ({ activeOfferId = 1, className = '' }) => {
+  const [selectedOfferId, setSelectedOfferId] = useState(String(activeOfferId));
   const [onboardingData, setOnboardingData] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [errorMsg, setErrorMsg] = useState('');
   const [togglingTaskId, setTogglingTaskId] = useState(null);
   const [feedbackMsg, setFeedbackMsg] = useState({ text: '', type: 'success' });
 
-  const loadOnboarding = async () => {
+  const loadOnboarding = async (targetId = selectedOfferId) => {
     try {
       setLoading(true);
-      const res = await offersApi.getOnboarding(activeOfferId);
+      setErrorMsg('');
+      const res = await offersApi.getOnboarding(targetId || 1);
       setOnboardingData(res.data);
     } catch (err) {
-      console.warn('Failed to load live onboarding data:', err.message);
-      // Fallback sample onboarding for demo
-      setOnboardingData({
-        offer: {
-          id: 1,
-          candidate_name: 'Alex Rivera',
-          candidate_email: 'alex.rivera@example.com',
-          job_title: 'Senior Full-Stack Engineer',
-          department: 'Engineering',
-          joining_date: '2026-03-01',
-          salary_offered: '165000.00',
-          status: 'ISSUED'
-        },
-        tasks: [
-          {
-            id: 4,
-            task_title: 'Complete Background Check Authorization Form',
-            is_completed: true,
-            due_date: '2026-02-10',
-            completed_at: '2026-01-29 10:15:00'
-          },
-          {
-            id: 1,
-            task_title: 'Review & Digitally Sign Employment Agreement',
-            is_completed: false,
-            due_date: '2026-02-15',
-            completed_at: null
-          },
-          {
-            id: 2,
-            task_title: 'Upload Government ID & Tax Verification Documents',
-            is_completed: false,
-            due_date: '2026-02-20',
-            completed_at: null
-          },
-          {
-            id: 3,
-            task_title: 'Select Hardware & Development Machine Preferences',
-            is_completed: false,
-            due_date: '2026-02-22',
-            completed_at: null
-          }
-        ]
-      });
+      setOnboardingData(null);
+      setErrorMsg(err.message || `Could not load onboarding checklist for Offer #${targetId}.`);
     } finally {
       setLoading(false);
     }
   };
 
   useEffect(() => {
-    loadOnboarding();
+    setSelectedOfferId(String(activeOfferId));
+    loadOnboarding(activeOfferId);
   }, [activeOfferId]);
 
   const showToast = (text, type = 'success') => {
@@ -138,16 +100,49 @@ export const AdminOnboardingTracker = ({ activeOfferId = 1, className = '' }) =>
           </p>
         </div>
 
-        <button
-          type="button"
-          onClick={loadOnboarding}
-          disabled={loading}
-          className="btn btn-outline btn-sm flex items-center gap-1.5 self-start sm:self-auto"
-        >
-          <RefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin' : ''}`} />
-          <span>Refresh Checklist</span>
-        </button>
+        <div className="flex items-center gap-2 self-start sm:self-auto">
+          <form
+            onSubmit={(e) => {
+              e.preventDefault();
+              loadOnboarding(selectedOfferId);
+            }}
+            className="flex items-center gap-1.5"
+          >
+            <label htmlFor="onboarding-offer-id" className="text-xs text-muted-foreground font-semibold">
+              Offer #
+            </label>
+            <input
+              id="onboarding-offer-id"
+              type="number"
+              min="1"
+              value={selectedOfferId}
+              onChange={(e) => setSelectedOfferId(e.target.value)}
+              className="w-16 px-2 py-1.5 rounded-lg text-xs bg-background border border-border text-foreground"
+            />
+            <button type="submit" className="btn btn-outline btn-sm">
+              Load
+            </button>
+          </form>
+
+          <button
+            type="button"
+            onClick={() => loadOnboarding(selectedOfferId)}
+            disabled={loading}
+            className="btn btn-outline btn-sm flex items-center gap-1.5"
+          >
+            <RefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin' : ''}`} />
+            <span>Refresh</span>
+          </button>
+        </div>
       </div>
+
+      {/* Error State */}
+      {errorMsg && (
+        <div className="p-4 rounded-xl bg-rose-500/10 border border-rose-500/30 text-rose-400 text-xs sm:text-sm flex items-center gap-2">
+          <AlertCircle className="w-4 h-4 flex-shrink-0" />
+          <span>{errorMsg}</span>
+        </div>
+      )}
 
       {/* Notification */}
       {feedbackMsg.text && (

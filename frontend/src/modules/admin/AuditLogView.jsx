@@ -38,6 +38,8 @@ export const AuditLogView = ({
   const [searchQuery, setSearchQuery] = useState('');
   const [stageFilter, setStageFilter] = useState('');
   const [roleFilter, setRoleFilter] = useState('');
+  const [fromDate, setFromDate] = useState('');
+  const [toDate, setToDate] = useState('');
   const [selectedLog, setSelectedLog] = useState(null);
   const [viewMode, setViewMode] = useState('table'); // 'table' | 'timeline'
 
@@ -60,22 +62,37 @@ export const AuditLogView = ({
         return false;
       }
 
+      // Date range filter
+      if (fromDate || toDate) {
+        const logDate = log.changed_at ? new Date(log.changed_at) : null;
+        if (!logDate || Number.isNaN(logDate.getTime())) return false;
+        if (fromDate) {
+          const start = new Date(`${fromDate}T00:00:00`);
+          if (logDate < start) return false;
+        }
+        if (toDate) {
+          const end = new Date(`${toDate}T23:59:59.999`);
+          if (logDate > end) return false;
+        }
+      }
+
       // Search query
       if (searchQuery.trim()) {
         const q = searchQuery.toLowerCase().trim();
+        const idMatch = String(log.id || '').includes(q);
         const candMatch = (log.candidate_name || '').toLowerCase().includes(q);
         const jobMatch = (log.job_title || '').toLowerCase().includes(q);
         const actorMatch = (log.changed_by_name || '').toLowerCase().includes(q);
         const notesMatch = (log.notes || '').toLowerCase().includes(q);
         const appMatch = String(log.application_id || '').includes(q);
-        if (!candMatch && !jobMatch && !actorMatch && !notesMatch && !appMatch) {
+        if (!idMatch && !candMatch && !jobMatch && !actorMatch && !notesMatch && !appMatch) {
           return false;
         }
       }
 
       return true;
     });
-  }, [auditLogs, stageFilter, roleFilter, searchQuery]);
+  }, [auditLogs, stageFilter, roleFilter, fromDate, toDate, searchQuery]);
 
   const totalLogs = filteredLogs.length;
   const totalPages = Math.max(1, Math.ceil(totalLogs / pageSize));
@@ -94,10 +111,12 @@ export const AuditLogView = ({
     setSearchQuery('');
     setStageFilter('');
     setRoleFilter('');
+    setFromDate('');
+    setToDate('');
     setPage(1);
   };
 
-  const hasActiveFilters = Boolean(searchQuery || stageFilter || roleFilter);
+  const hasActiveFilters = Boolean(searchQuery || stageFilter || roleFilter || fromDate || toDate);
 
   return (
     <div className={`space-y-4 ${className}`}>
@@ -166,6 +185,34 @@ export const AuditLogView = ({
             <option value="HR">HR</option>
             <option value="CANDIDATE">CANDIDATE</option>
           </select>
+
+          {/* Date Range Filter */}
+          <div className="flex items-center gap-1.5 bg-background border border-border rounded-lg px-2 py-1">
+            <Calendar className="w-3.5 h-3.5 text-muted-foreground" />
+            <input
+              type="date"
+              value={fromDate}
+              onChange={(e) => {
+                setFromDate(e.target.value);
+                setPage(1);
+              }}
+              aria-label="Filter from date"
+              title="From date"
+              className="bg-transparent text-xs text-foreground outline-none cursor-pointer"
+            />
+            <span className="text-muted-foreground text-xs">–</span>
+            <input
+              type="date"
+              value={toDate}
+              onChange={(e) => {
+                setToDate(e.target.value);
+                setPage(1);
+              }}
+              aria-label="Filter to date"
+              title="To date"
+              className="bg-transparent text-xs text-foreground outline-none cursor-pointer"
+            />
+          </div>
 
           {/* View Mode Toggle */}
           <div className="flex bg-muted p-0.5 rounded-lg border border-border text-xs">
