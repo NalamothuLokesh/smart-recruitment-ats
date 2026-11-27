@@ -14,7 +14,8 @@ import {
   FileText,
   SlidersHorizontal,
   ChevronLeft,
-  ChevronRight
+  ChevronRight,
+  Download
 } from 'lucide-react';
 
 const STAGE_COLORS = {
@@ -114,6 +115,57 @@ export const AuditLogView = ({
     setFromDate('');
     setToDate('');
     setPage(1);
+  };
+
+  const handleExportCsv = () => {
+    const recordsToExport = filteredLogs.length > 0 ? filteredLogs : auditLogs;
+    if (recordsToExport.length === 0) {
+      alert('No audit log records available to export.');
+      return;
+    }
+
+    const headers = [
+      'Log ID',
+      'Timestamp',
+      'Candidate Name',
+      'Job Title',
+      'From Stage',
+      'To Stage',
+      'Changed By Name',
+      'Changed By Role',
+      'Application ID',
+      'Notes'
+    ];
+
+    const escapeCsv = (val) => {
+      if (val === null || val === undefined) return '""';
+      const str = String(val).replace(/"/g, '""');
+      return `"${str}"`;
+    };
+
+    const rows = recordsToExport.map((log) => [
+      escapeCsv(log.id),
+      escapeCsv(log.changed_at ? new Date(log.changed_at).toISOString() : ''),
+      escapeCsv(log.candidate_name),
+      escapeCsv(log.job_title),
+      escapeCsv(log.from_stage || 'INITIAL'),
+      escapeCsv(log.to_stage),
+      escapeCsv(log.changed_by_name),
+      escapeCsv(log.changed_by_role),
+      escapeCsv(log.application_id || ''),
+      escapeCsv(log.notes || '')
+    ]);
+
+    const csvContent = [headers.join(','), ...rows.map((r) => r.join(','))].join('\r\n');
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.setAttribute('download', `smart-ats-audit-logs-${new Date().toISOString().slice(0, 10)}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
   };
 
   const hasActiveFilters = Boolean(searchQuery || stageFilter || roleFilter || fromDate || toDate);
@@ -239,6 +291,18 @@ export const AuditLogView = ({
               Timeline Feed
             </button>
           </div>
+
+          {/* Export CSV */}
+          <button
+            type="button"
+            onClick={handleExportCsv}
+            disabled={filteredLogs.length === 0}
+            title="Export audit log records to CSV"
+            className="px-3 py-2 rounded-lg text-xs font-semibold bg-muted hover:bg-muted/80 text-foreground border border-border transition-colors flex items-center gap-1.5 disabled:opacity-50"
+          >
+            <Download className="w-3.5 h-3.5 text-primary" />
+            <span>Export CSV</span>
+          </button>
 
           {/* Reset Filters */}
           {hasActiveFilters && (

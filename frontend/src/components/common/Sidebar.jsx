@@ -16,7 +16,8 @@ import {
   X,
   Layers,
   Sparkles,
-  Users
+  Users,
+  Activity
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 
@@ -48,7 +49,10 @@ export default function Sidebar({
       pathname === '/offers'
     ) {
       setOpenSections((prev) => ({ ...prev, recruitment: true }));
-    } else if (pathname === '/analytics' || pathname === '/admin') {
+    } else if (
+      pathname === '/analytics' ||
+      pathname.startsWith('/admin')
+    ) {
       setOpenSections((prev) => ({ ...prev, intelligence: true }));
     }
   }, [pathname]);
@@ -64,7 +68,9 @@ export default function Sidebar({
   const isInterviewsActive = pathname === '/interviews';
   const isOffersActive = pathname === '/offers';
   const isAnalyticsActive = pathname === '/analytics';
-  const isAdminActive = pathname === '/admin';
+  const isAdminActive = pathname === '/admin' && !location.search;
+  const isUsersActive = pathname === '/admin/users';
+  const isAuditActive = pathname === '/admin/audit';
 
   const userInitials = user?.fullName
     ? user.fullName
@@ -140,56 +146,59 @@ export default function Sidebar({
 
         {/* Sidebar Nav Items */}
         <nav className="sidebar-nav">
-          {/* ── Section 1: Talent Discovery & Applicant Portal ── */}
-          <div className="sidebar-group">
-            {!collapsed ? (
-              <button
-                type="button"
-                className="sidebar-group-header"
-                onClick={() => toggleSection('talent')}
-                aria-expanded={openSections.talent}
-              >
-                <div className="group-title-wrap">
-                  <Sparkles size={14} className="group-icon text-indigo-500" />
-                  <span className="group-title">Talent Discovery</span>
-                </div>
-                {openSections.talent ? (
-                  <ChevronDown size={14} className="group-chevron" />
-                ) : (
-                  <ChevronRight size={14} className="group-chevron" />
-                )}
-              </button>
-            ) : null}
-
-            {(!collapsed ? openSections.talent : true) && (
-              <div className="sidebar-group-children">
-                <Link
-                  to="/jobs"
-                  className={`sidebar-link ${isJobsActive ? 'active' : ''}`}
-                  onClick={onCloseMobile}
-                  title={collapsed ? 'Job Openings' : undefined}
+          {/* ── Section 1: Talent Discovery & Applicant Portal (Candidates, HR, Guests; Hidden for Admin) ── */}
+          {!isAdmin && (
+            <div className="sidebar-group">
+              {!collapsed ? (
+                <button
+                  type="button"
+                  className="sidebar-group-header"
+                  onClick={() => toggleSection('talent')}
+                  aria-expanded={openSections.talent}
                 >
-                  <Briefcase size={16} className="link-icon" />
-                  {!collapsed && <span className="link-text">Job Openings</span>}
-                </Link>
+                  <div className="group-title-wrap">
+                    <Sparkles size={14} className="group-icon text-indigo-500" />
+                    <span className="group-title">Recruitment</span>
+                  </div>
+                  {openSections.talent ? (
+                    <ChevronDown size={14} className="group-chevron" />
+                  ) : (
+                    <ChevronRight size={14} className="group-chevron" />
+                  )}
+                </button>
+              ) : null}
 
-                {isAuthenticated && (isCandidate || isHR || isAdmin) && (
+              {(!collapsed ? openSections.talent : true) && (
+                <div className="sidebar-group-children">
                   <Link
-                    to="/candidate"
-                    className={`sidebar-link ${isCandActive ? 'active' : ''}`}
+                    to="/jobs"
+                    className={`sidebar-link ${isJobsActive ? 'active' : ''}`}
                     onClick={onCloseMobile}
-                    title={collapsed ? 'Candidate Portal' : undefined}
+                    title={collapsed ? 'Job Openings' : undefined}
                   >
-                    <UserCheck size={16} className="link-icon" />
-                    {!collapsed && <span className="link-text">Candidate Portal</span>}
+                    <Briefcase size={16} className="link-icon" />
+                    {!collapsed && <span className="link-text">Job Openings</span>}
                   </Link>
-                )}
-              </div>
-            )}
-          </div>
 
-          {/* ── Section 2: Recruiter Operations (HR & Admin) ── */}
-          {isAuthenticated && (isHR || isAdmin) && (
+                  {/* Candidate Portal: ONLY visible to CANDIDATE. Hidden from Admin and HR */}
+                  {isAuthenticated && isCandidate && (
+                    <Link
+                      to="/candidate"
+                      className={`sidebar-link ${isCandActive ? 'active' : ''}`}
+                      onClick={onCloseMobile}
+                      title={collapsed ? 'Candidate Portal' : undefined}
+                    >
+                      <UserCheck size={16} className="link-icon" />
+                      {!collapsed && <span className="link-text">Candidate Portal</span>}
+                    </Link>
+                  )}
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* ── Section 2: Dedicated HR Recruitment Operations (HR Only) ── */}
+          {isAuthenticated && isHR && (
             <div className="sidebar-group">
               {!collapsed ? (
                 <button
@@ -200,7 +209,7 @@ export default function Sidebar({
                 >
                   <div className="group-title-wrap">
                     <Layers size={14} className="group-icon text-indigo-500" />
-                    <span className="group-title">Recruitment Pipeline</span>
+                    <span className="group-title">Recruitment Operations</span>
                   </div>
                   {openSections.recruitment ? (
                     <ChevronDown size={14} className="group-chevron" />
@@ -218,7 +227,7 @@ export default function Sidebar({
                     onClick={onCloseMobile}
                     title={collapsed ? 'Manage Requisitions' : undefined}
                   >
-                    <FileText size={16} className="link-icon" />
+                    <FileText size={16} className="link-icon text-blue-400" />
                     {!collapsed && <span className="link-text">Job Requisitions</span>}
                   </Link>
 
@@ -228,7 +237,7 @@ export default function Sidebar({
                     onClick={onCloseMobile}
                     title={collapsed ? 'Candidate Pipeline' : undefined}
                   >
-                    <Kanban size={16} className="link-icon" />
+                    <Kanban size={16} className="link-icon text-indigo-400" />
                     {!collapsed && <span className="link-text">Kanban Pipeline</span>}
                   </Link>
 
@@ -238,7 +247,7 @@ export default function Sidebar({
                     onClick={onCloseMobile}
                     title={collapsed ? 'Interviews' : undefined}
                   >
-                    <Calendar size={16} className="link-icon" />
+                    <Calendar size={16} className="link-icon text-amber-400" />
                     {!collapsed && <span className="link-text">Interviews</span>}
                   </Link>
 
@@ -248,16 +257,26 @@ export default function Sidebar({
                     onClick={onCloseMobile}
                     title={collapsed ? 'Offers & Onboarding' : undefined}
                   >
-                    <Gift size={16} className="link-icon" />
+                    <Gift size={16} className="link-icon text-emerald-400" />
                     {!collapsed && <span className="link-text">Offers & Onboarding</span>}
+                  </Link>
+
+                  <Link
+                    to="/analytics"
+                    className={`sidebar-link ${isAnalyticsActive ? 'active' : ''}`}
+                    onClick={onCloseMobile}
+                    title={collapsed ? 'Hiring Analytics' : undefined}
+                  >
+                    <BarChart3 size={16} className="link-icon text-purple-400" />
+                    {!collapsed && <span className="link-text">Hiring Analytics</span>}
                   </Link>
                 </div>
               )}
             </div>
           )}
 
-          {/* ── Section 3: Intelligence & Governance ── */}
-          {isAuthenticated && (isHR || isAdmin) && (
+          {/* ── Section 3: Dedicated Administration & Operations (Admin Only) ── */}
+          {isAuthenticated && isAdmin && (
             <div className="sidebar-group">
               {!collapsed ? (
                 <button
@@ -268,7 +287,7 @@ export default function Sidebar({
                 >
                   <div className="group-title-wrap">
                     <ShieldCheck size={14} className="group-icon text-amber-500" />
-                    <span className="group-title">Governance & Analytics</span>
+                    <span className="group-title">Administration & Ops</span>
                   </div>
                   {openSections.intelligence ? (
                     <ChevronDown size={14} className="group-chevron" />
@@ -281,26 +300,54 @@ export default function Sidebar({
               {(!collapsed ? openSections.intelligence : true) && (
                 <div className="sidebar-group-children">
                   <Link
+                    to="/admin"
+                    className={`sidebar-link ${isAdminActive ? 'active' : ''}`}
+                    onClick={onCloseMobile}
+                    title={collapsed ? 'Admin Console' : undefined}
+                  >
+                    <ShieldCheck size={16} className="link-icon text-amber-400" />
+                    {!collapsed && <span className="link-text">Admin Console</span>}
+                  </Link>
+
+                  <Link
+                    to="/admin/users"
+                    className={`sidebar-link ${isUsersActive ? 'active' : ''}`}
+                    onClick={onCloseMobile}
+                    title={collapsed ? 'User Management' : undefined}
+                  >
+                    <Users size={16} className="link-icon text-indigo-400" />
+                    {!collapsed && <span className="link-text">User Management</span>}
+                  </Link>
+
+                  <Link
+                    to="/admin/audit"
+                    className={`sidebar-link ${isAuditActive ? 'active' : ''}`}
+                    onClick={onCloseMobile}
+                    title={collapsed ? 'Audit Logs' : undefined}
+                  >
+                    <Activity size={16} className="link-icon text-emerald-400" />
+                    {!collapsed && <span className="link-text">Audit Logs</span>}
+                  </Link>
+
+                  <Link
                     to="/analytics"
                     className={`sidebar-link ${isAnalyticsActive ? 'active' : ''}`}
                     onClick={onCloseMobile}
                     title={collapsed ? 'Hiring Analytics' : undefined}
                   >
-                    <BarChart3 size={16} className="link-icon" />
+                    <BarChart3 size={16} className="link-icon text-purple-400" />
                     {!collapsed && <span className="link-text">Hiring Analytics</span>}
                   </Link>
 
-                  {isAdmin && (
-                    <Link
-                      to="/admin"
-                      className={`sidebar-link ${isAdminActive ? 'active' : ''}`}
-                      onClick={onCloseMobile}
-                      title={collapsed ? 'Admin Console' : undefined}
-                    >
-                      <ShieldCheck size={16} className="link-icon text-amber-500" />
-                      {!collapsed && <span className="link-text">Admin Console</span>}
-                    </Link>
-                  )}
+                  <Link
+                    to="/hr/jobs"
+                    className={`sidebar-link ${isHrJobsActive ? 'active' : ''}`}
+                    onClick={onCloseMobile}
+                    title={collapsed ? 'Job Requisitions' : undefined}
+                  >
+                    <FileText size={16} className="link-icon text-blue-400" />
+                    {!collapsed && <span className="link-text">Job Requisitions</span>}
+                  </Link>
                 </div>
               )}
             </div>

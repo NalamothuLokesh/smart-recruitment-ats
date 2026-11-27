@@ -94,8 +94,8 @@ const RBAC_RULES = [
     public: false,
     candidate: false,
     hr: true,
-    admin: true,
-    notes: 'Protected by ProtectedRoute [HR, ADMIN]'
+    admin: false,
+    notes: 'Protected by ProtectedRoute [HR]'
   },
   {
     module: 'Recruitment Ops',
@@ -116,8 +116,19 @@ const RBAC_RULES = [
     public: false,
     candidate: false,
     hr: true,
-    admin: true,
-    notes: 'Virtual room links & scorecards'
+    admin: false,
+    notes: 'Protected by ProtectedRoute [HR]'
+  },
+  {
+    module: 'Interviews & Offers',
+    resource: 'Offers & Onboarding Tracker',
+    path: '/offers',
+    method: 'ROUTE',
+    public: false,
+    candidate: false,
+    hr: true,
+    admin: false,
+    notes: 'Protected by ProtectedRoute [HR]'
   },
   {
     module: 'Interviews & Offers',
@@ -296,7 +307,7 @@ export const AdminRbacVerification = ({ className = '' }) => {
               Active
             </span>
           </div>
-          <p className="text-[11px] text-muted-foreground mt-1">{user?.email || 'admin@novatech.io'}</p>
+          <p className="text-[11px] text-muted-foreground mt-1">{user?.email || 'Authenticated Operator'}</p>
         </div>
 
         <div className="p-4 rounded-xl bg-card border border-border shadow-sm">

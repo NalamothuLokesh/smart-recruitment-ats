@@ -26,25 +26,25 @@ export const ProtectedRoute = ({ children, allowedRoles = [] }) => {
 
   if (allowedRoles.length > 0 && !allowedRoles.includes(user.role)) {
     return (
-      <div className="max-w-2xl mx-auto my-16 p-8 bg-white border border-rose-200 rounded-xl shadow-sm text-center">
-        <div className="w-14 h-14 mx-auto mb-4 bg-rose-100 text-rose-600 rounded-full flex items-center justify-center">
+      <div className="max-w-2xl mx-auto my-16 p-8 bg-card border border-border rounded-2xl shadow-sm text-center animate-fadeIn">
+        <div className="w-14 h-14 mx-auto mb-4 bg-rose-500/10 text-rose-400 rounded-full flex items-center justify-center border border-rose-500/30">
           <ShieldAlert className="w-8 h-8" />
         </div>
-        <h2 className="text-2xl font-bold text-slate-900 mb-2">Access Restricted (403 Forbidden)</h2>
-        <p className="text-slate-600 mb-6">
-          Your current account role <span className="font-semibold text-rose-600 font-mono">[{user.role}]</span> is not authorized to view this resource. 
-          This view requires one of: <span className="font-mono text-slate-800">[{allowedRoles.join(', ')}]</span>.
+        <h2 className="text-2xl font-bold text-foreground mb-2">Access Restricted (403 Forbidden)</h2>
+        <p className="text-muted-foreground mb-6">
+          Your current account role <span className="font-semibold text-rose-400 font-mono">[{user.role}]</span> is not authorized to view this resource. 
+          This view requires one of: <span className="font-mono text-foreground font-semibold">[{allowedRoles.join(', ')}]</span>.
         </p>
         <div className="flex justify-center gap-3">
           <button
             onClick={() => window.history.back()}
-            className="px-4 py-2 border border-slate-300 text-slate-700 rounded-lg hover:bg-slate-50 text-sm font-medium"
+            className="btn btn-outline btn-sm"
           >
             Go Back
           </button>
           <a
             href={user.role === 'CANDIDATE' ? '/candidate' : user.role === 'HR' ? '/pipeline' : '/admin'}
-            className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 text-sm font-medium"
+            className="btn btn-primary btn-sm"
           >
             Go to Your Dashboard
           </a>

@@ -13,6 +13,10 @@ import {
   Building,
   User as UserIcon,
   Sparkles,
+  Users,
+  Activity,
+  Calendar,
+  Gift
 } from 'lucide-react';
 import ThemeToggle from './ThemeToggle';
 
@@ -74,7 +78,7 @@ export default function Navbar({ onOpenPalette, onToggleMobileSidebar }) {
         </button>
 
         {/* Brand Emblem */}
-        <Link to="/jobs" className="nav-brand">
+        <Link to={isAdmin ? '/admin' : isHR ? '/pipeline' : '/jobs'} className="nav-brand">
           <div className="nav-logo-box">
             <Briefcase size={20} strokeWidth={2.4} className="nav-logo-icon" />
           </div>
@@ -103,15 +107,27 @@ export default function Navbar({ onOpenPalette, onToggleMobileSidebar }) {
       </div>
 
       <div className="navbar-right">
-        <Link
-          to="/jobs"
-          className={`nav-link ${isActive('/jobs') ? 'nav-link-active' : ''}`}
-        >
-          <span>Job Openings</span>
-        </Link>
+        {/* Job Openings: Visible to Candidates, HR, and Guests; Hidden for System Admin */}
+        {!isAdmin && (
+          <Link
+            to="/jobs"
+            className={`nav-link ${isActive('/jobs') ? 'nav-link-active' : ''}`}
+          >
+            <span>Job Openings</span>
+          </Link>
+        )}
 
-        {isAuthenticated && (isHR || isAdmin) && (
+        {/* HR-Specific Navigation Links */}
+        {isAuthenticated && isHR && (
           <>
+            <Link
+              to="/hr/jobs"
+              className={`nav-link ${isActive('/hr/jobs') ? 'nav-link-active' : ''}`}
+            >
+              <Briefcase size={15} />
+              <span>Job Requisitions</span>
+            </Link>
+
             <Link
               to="/pipeline"
               className={`nav-link ${isActive('/pipeline') ? 'nav-link-active' : ''}`}
@@ -130,6 +146,7 @@ export default function Navbar({ onOpenPalette, onToggleMobileSidebar }) {
           </>
         )}
 
+        {/* Candidate-Specific Navigation Links */}
         {isAuthenticated && isCandidate && (
           <Link
             to="/candidate"
@@ -140,14 +157,41 @@ export default function Navbar({ onOpenPalette, onToggleMobileSidebar }) {
           </Link>
         )}
 
+        {/* Admin-Specific Navigation Links */}
         {isAuthenticated && isAdmin && (
-          <Link
-            to="/admin"
-            className={`nav-link nav-admin-link ${isActive('/admin') ? 'nav-link-active' : ''}`}
-          >
-            <ShieldCheck size={15} />
-            <span>Admin</span>
-          </Link>
+          <>
+            <Link
+              to="/admin"
+              className={`nav-link nav-admin-link ${isActive('/admin') ? 'nav-link-active' : ''}`}
+            >
+              <ShieldCheck size={15} />
+              <span>Admin Console</span>
+            </Link>
+
+            <Link
+              to="/admin/users"
+              className={`nav-link ${isActive('/admin/users') ? 'nav-link-active' : ''}`}
+            >
+              <Users size={15} />
+              <span>Users</span>
+            </Link>
+
+            <Link
+              to="/hr/jobs"
+              className={`nav-link ${isActive('/hr/jobs') ? 'nav-link-active' : ''}`}
+            >
+              <Briefcase size={15} />
+              <span>Requisitions</span>
+            </Link>
+
+            <Link
+              to="/analytics"
+              className={`nav-link ${isActive('/analytics') ? 'nav-link-active' : ''}`}
+            >
+              <Sparkles size={15} className="text-indigo-500" />
+              <span>Analytics</span>
+            </Link>
+          </>
         )}
 
         <div className="nav-divider" />
@@ -204,18 +248,36 @@ export default function Navbar({ onOpenPalette, onToggleMobileSidebar }) {
                 <div className="nav-dropdown-divider" />
 
                 {isCandidate && (
-                  <Link
-                    to="/candidate"
-                    className="nav-dropdown-item"
-                    onClick={() => setDropdownOpen(false)}
-                  >
-                    <UserCheck size={15} />
-                    <span>Candidate Dashboard</span>
-                  </Link>
+                  <>
+                    <Link
+                      to="/candidate"
+                      className="nav-dropdown-item"
+                      onClick={() => setDropdownOpen(false)}
+                    >
+                      <UserCheck size={15} />
+                      <span>Candidate Dashboard</span>
+                    </Link>
+                    <Link
+                      to="/jobs"
+                      className="nav-dropdown-item"
+                      onClick={() => setDropdownOpen(false)}
+                    >
+                      <Briefcase size={15} />
+                      <span>Job Openings</span>
+                    </Link>
+                  </>
                 )}
 
-                {(isHR || isAdmin) && (
+                {isHR && (
                   <>
+                    <Link
+                      to="/hr/jobs"
+                      className="nav-dropdown-item"
+                      onClick={() => setDropdownOpen(false)}
+                    >
+                      <Briefcase size={15} />
+                      <span>Job Requisitions</span>
+                    </Link>
                     <Link
                       to="/pipeline"
                       className="nav-dropdown-item"
@@ -225,25 +287,75 @@ export default function Navbar({ onOpenPalette, onToggleMobileSidebar }) {
                       <span>Candidate Pipeline</span>
                     </Link>
                     <Link
-                      to="/hr/jobs"
+                      to="/interviews"
                       className="nav-dropdown-item"
                       onClick={() => setDropdownOpen(false)}
                     >
-                      <Briefcase size={15} />
-                      <span>Manage Requisitions</span>
+                      <Calendar size={15} />
+                      <span>Interviews</span>
+                    </Link>
+                    <Link
+                      to="/offers"
+                      className="nav-dropdown-item"
+                      onClick={() => setDropdownOpen(false)}
+                    >
+                      <Gift size={15} />
+                      <span>Offers & Onboarding</span>
+                    </Link>
+                    <Link
+                      to="/analytics"
+                      className="nav-dropdown-item"
+                      onClick={() => setDropdownOpen(false)}
+                    >
+                      <Sparkles size={15} className="text-indigo-500" />
+                      <span>Hiring Analytics</span>
                     </Link>
                   </>
                 )}
 
                 {isAdmin && (
-                  <Link
-                    to="/admin"
-                    className="nav-dropdown-item"
-                    onClick={() => setDropdownOpen(false)}
-                  >
-                    <ShieldCheck size={15} />
-                    <span>Admin Console</span>
-                  </Link>
+                  <>
+                    <Link
+                      to="/admin"
+                      className="nav-dropdown-item"
+                      onClick={() => setDropdownOpen(false)}
+                    >
+                      <ShieldCheck size={15} />
+                      <span>Admin Console</span>
+                    </Link>
+                    <Link
+                      to="/admin/users"
+                      className="nav-dropdown-item"
+                      onClick={() => setDropdownOpen(false)}
+                    >
+                      <Users size={15} />
+                      <span>User Management</span>
+                    </Link>
+                    <Link
+                      to="/admin/audit"
+                      className="nav-dropdown-item"
+                      onClick={() => setDropdownOpen(false)}
+                    >
+                      <Activity size={15} />
+                      <span>Audit Logs</span>
+                    </Link>
+                    <Link
+                      to="/analytics"
+                      className="nav-dropdown-item"
+                      onClick={() => setDropdownOpen(false)}
+                    >
+                      <Sparkles size={15} className="text-indigo-500" />
+                      <span>Hiring Analytics</span>
+                    </Link>
+                    <Link
+                      to="/hr/jobs"
+                      className="nav-dropdown-item"
+                      onClick={() => setDropdownOpen(false)}
+                    >
+                      <Briefcase size={15} />
+                      <span>Job Requisitions</span>
+                    </Link>
+                  </>
                 )}
 
                 <div className="nav-dropdown-divider" />

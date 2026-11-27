@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { adminApi } from '../../api/client';
+import { useLocation, useNavigate } from 'react-router-dom';
+import { adminApi, jobsApi } from '../../api/client';
 import {
   ShieldCheck,
   Users,
@@ -22,7 +23,14 @@ import {
   Calendar,
   Gift,
   CheckSquare,
-  ShieldAlert
+  ShieldAlert,
+  LayoutDashboard,
+  BarChart3,
+  FileText,
+  ExternalLink,
+  ArrowRight,
+  TrendingUp,
+  UserCog
 } from 'lucide-react';
 import UserManagement from './UserManagement';
 import AuditLogView from './AuditLogView';
@@ -215,10 +223,42 @@ const SAMPLE_AUDIT_LOGS = [
 ];
 
 export const AdminDashboard = () => {
+  const location = useLocation();
+  const navigate = useNavigate();
+
+  const getInitialTab = useCallback(() => {
+    if (location.pathname === '/admin/audit') return 'activity';
+    if (location.pathname === '/admin/users') return 'users';
+    const params = new URLSearchParams(location.search);
+    const qTab = params.get('tab');
+    if (qTab && ['overview', 'users', 'activity', 'interviews', 'offers', 'rbac', 'provision'].includes(qTab)) {
+      return qTab;
+    }
+    return 'overview';
+  }, [location.pathname, location.search]);
+
   const [users, setUsers] = useState(SAMPLE_USERS);
   const [auditLogs, setAuditLogs] = useState(SAMPLE_AUDIT_LOGS);
-  const [activeTab, setActiveTab] = useState('users'); // 'users' | 'activity' | 'interviews' | 'offers' | 'rbac' | 'provision'
+  const [jobs, setJobs] = useState([]);
+  const [activeTab, setActiveTab] = useState(getInitialTab);
   const [offersSubTab, setOffersSubTab] = useState('generator'); // 'generator' | 'onboarding'
+
+  useEffect(() => {
+    setActiveTab(getInitialTab());
+  }, [getInitialTab]);
+
+  const handleTabChange = (tab) => {
+    setActiveTab(tab);
+    if (tab === 'overview') {
+      navigate('/admin');
+    } else if (tab === 'users') {
+      navigate('/admin/users');
+    } else if (tab === 'activity') {
+      navigate('/admin/audit');
+    } else {
+      navigate(`/admin?tab=${tab}`);
+    }
+  };
   const [loading, setLoading] = useState(true);
   const [isLiveApi, setIsLiveApi] = useState(false);
   const [bannerNotice, setBannerNotice] = useState('');
@@ -266,10 +306,23 @@ export const AdminDashboard = () => {
     }
   }, []);
 
+  // Fetch Jobs from API or Fallback (for Open Job Positions metric)
+  const loadJobs = useCallback(async () => {
+    try {
+      const res = await jobsApi.listJobs();
+      if (res && res.data && Array.isArray(res.data)) {
+        setJobs(res.data);
+      }
+    } catch (err) {
+      console.warn('Jobs API unreachable, using empty jobs state:', err.message);
+    }
+  }, []);
+
   useEffect(() => {
     loadUsers();
     loadAuditLogs();
-  }, [loadUsers, loadAuditLogs]);
+    loadJobs();
+  }, [loadUsers, loadAuditLogs, loadJobs]);
 
   // Update Role Handler
   const handleUpdateRole = async (userId, newRole) => {
@@ -383,6 +436,13 @@ export const AdminDashboard = () => {
   const hrCount = users.filter((u) => u.role === 'HR').length;
   const candidateCount = users.filter((u) => u.role === 'CANDIDATE').length;
 
+  const adminPct = totalUsers > 0 ? Math.round((adminCount / totalUsers) * 100) : 0;
+  const hrPct = totalUsers > 0 ? Math.round((hrCount / totalUsers) * 100) : 0;
+  const candidatePct = totalUsers > 0 ? Math.round((candidateCount / totalUsers) * 100) : 0;
+
+  const openJobsCount = jobs.filter((j) => j.status === 'PUBLISHED').length;
+  const totalJobsCount = jobs.length;
+
   return (
     <div className="admin-module-container space-y-8 animate-fadeIn">
       {/* ── Top Executive Header ────────────────────────────────────────────── */}
@@ -440,7 +500,19 @@ export const AdminDashboard = () => {
           <div className="flex bg-muted p-1 rounded-xl border border-border flex-wrap gap-1">
             <button
               type="button"
-              onClick={() => setActiveTab('users')}
+              onClick={() => handleTabChange('overview')}
+              className={`px-3 py-1.5 rounded-lg text-xs sm:text-sm font-semibold transition-colors flex items-center gap-1.5 ${
+                activeTab === 'overview'
+                  ? 'bg-card text-foreground shadow-sm'
+                  : 'text-muted-foreground hover:text-foreground'
+              }`}
+            >
+              <LayoutDashboard className="w-3.5 h-3.5" />
+              <span>Overview</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => handleTabChange('users')}
               className={`px-3 py-1.5 rounded-lg text-xs sm:text-sm font-semibold transition-colors flex items-center gap-1.5 ${
                 activeTab === 'users'
                   ? 'bg-card text-foreground shadow-sm'
@@ -452,7 +524,7 @@ export const AdminDashboard = () => {
             </button>
             <button
               type="button"
-              onClick={() => setActiveTab('activity')}
+              onClick={() => handleTabChange('activity')}
               className={`px-3 py-1.5 rounded-lg text-xs sm:text-sm font-semibold transition-colors flex items-center gap-1.5 ${
                 activeTab === 'activity'
                   ? 'bg-card text-foreground shadow-sm'
@@ -464,7 +536,7 @@ export const AdminDashboard = () => {
             </button>
             <button
               type="button"
-              onClick={() => setActiveTab('interviews')}
+              onClick={() => handleTabChange('interviews')}
               className={`px-3 py-1.5 rounded-lg text-xs sm:text-sm font-semibold transition-colors flex items-center gap-1.5 ${
                 activeTab === 'interviews'
                   ? 'bg-card text-foreground shadow-sm'
@@ -476,7 +548,7 @@ export const AdminDashboard = () => {
             </button>
             <button
               type="button"
-              onClick={() => setActiveTab('offers')}
+              onClick={() => handleTabChange('offers')}
               className={`px-3 py-1.5 rounded-lg text-xs sm:text-sm font-semibold transition-colors flex items-center gap-1.5 ${
                 activeTab === 'offers'
                   ? 'bg-card text-foreground shadow-sm'
@@ -488,7 +560,7 @@ export const AdminDashboard = () => {
             </button>
             <button
               type="button"
-              onClick={() => setActiveTab('rbac')}
+              onClick={() => handleTabChange('rbac')}
               className={`px-3 py-1.5 rounded-lg text-xs sm:text-sm font-semibold transition-colors flex items-center gap-1.5 ${
                 activeTab === 'rbac'
                   ? 'bg-card text-foreground shadow-sm'
@@ -500,7 +572,7 @@ export const AdminDashboard = () => {
             </button>
             <button
               type="button"
-              onClick={() => setActiveTab('provision')}
+              onClick={() => handleTabChange('provision')}
               className={`px-3 py-1.5 rounded-lg text-xs sm:text-sm font-semibold transition-colors flex items-center gap-1.5 ${
                 activeTab === 'provision'
                   ? 'bg-card text-foreground shadow-sm'
@@ -531,103 +603,450 @@ export const AdminDashboard = () => {
         </div>
       )}
 
-      {/* ── KPI Metric Summary Cards (Requirement 3.A) ────────────────────── */}
-      <div className="admin-stats-grid">
+      {/* ── Admin Quick Actions (Requirement 5) ───────────────────────────── */}
+      <div className="p-4 rounded-xl bg-card border border-border shadow-sm">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 pb-3 border-b border-border/60">
+          <div className="flex items-center gap-2">
+            <Sparkles className="w-4 h-4 text-primary" />
+            <span className="text-xs font-bold uppercase tracking-wider text-foreground">
+              Admin Quick Actions
+            </span>
+          </div>
+          <span className="text-[11px] text-muted-foreground">
+            Fast shortcuts to operational modules and system workflows
+          </span>
+        </div>
+        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-2.5 mt-3">
+          <button
+            type="button"
+            onClick={() => handleTabChange('users')}
+            className="flex items-center gap-2.5 p-2.5 rounded-lg bg-background hover:bg-muted border border-border hover:border-indigo-500/50 text-foreground transition-all group text-left shadow-sm"
+          >
+            <div className="p-2 rounded-lg bg-indigo-500/10 text-indigo-400 group-hover:bg-indigo-500/20 transition-colors flex-shrink-0">
+              <Users className="w-4 h-4" />
+            </div>
+            <div className="truncate">
+              <span className="block font-bold text-xs text-foreground">Manage Users</span>
+              <span className="text-[10px] text-muted-foreground hidden sm:block">Directory & status</span>
+            </div>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => handleTabChange('activity')}
+            className="flex items-center gap-2.5 p-2.5 rounded-lg bg-background hover:bg-muted border border-border hover:border-emerald-500/50 text-foreground transition-all group text-left shadow-sm"
+          >
+            <div className="p-2 rounded-lg bg-emerald-500/10 text-emerald-400 group-hover:bg-emerald-500/20 transition-colors flex-shrink-0">
+              <Activity className="w-4 h-4" />
+            </div>
+            <div className="truncate">
+              <span className="block font-bold text-xs text-foreground">View Audit Logs</span>
+              <span className="text-[10px] text-muted-foreground hidden sm:block">System audit trail</span>
+            </div>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => handleTabChange('users')}
+            className="flex items-center gap-2.5 p-2.5 rounded-lg bg-background hover:bg-muted border border-border hover:border-purple-500/50 text-foreground transition-all group text-left shadow-sm"
+          >
+            <div className="p-2 rounded-lg bg-purple-500/10 text-purple-400 group-hover:bg-purple-500/20 transition-colors flex-shrink-0">
+              <UserCog className="w-4 h-4" />
+            </div>
+            <div className="truncate">
+              <span className="block font-bold text-xs text-foreground">Manage Roles</span>
+              <span className="text-[10px] text-muted-foreground hidden sm:block">Assign RBAC access</span>
+            </div>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => navigate('/analytics')}
+            className="flex items-center gap-2.5 p-2.5 rounded-lg bg-background hover:bg-muted border border-border hover:border-amber-500/50 text-foreground transition-all group text-left shadow-sm"
+          >
+            <div className="p-2 rounded-lg bg-amber-500/10 text-amber-400 group-hover:bg-amber-500/20 transition-colors flex-shrink-0">
+              <BarChart3 className="w-4 h-4" />
+            </div>
+            <div className="truncate flex-1">
+              <div className="flex items-center gap-1">
+                <span className="block font-bold text-xs text-foreground">Hiring Analytics</span>
+                <ExternalLink className="w-2.5 h-2.5 text-muted-foreground" />
+              </div>
+              <span className="text-[10px] text-muted-foreground hidden sm:block">Funnel insights</span>
+            </div>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => navigate('/hr/jobs')}
+            className="flex items-center gap-2.5 p-2.5 rounded-lg bg-background hover:bg-muted border border-border hover:border-blue-500/50 text-foreground transition-all group text-left shadow-sm"
+          >
+            <div className="p-2 rounded-lg bg-blue-500/10 text-blue-400 group-hover:bg-blue-500/20 transition-colors flex-shrink-0">
+              <Briefcase className="w-4 h-4" />
+            </div>
+            <div className="truncate flex-1">
+              <div className="flex items-center gap-1">
+                <span className="block font-bold text-xs text-foreground">Job Requisitions</span>
+                <ExternalLink className="w-2.5 h-2.5 text-muted-foreground" />
+              </div>
+              <span className="text-[10px] text-muted-foreground hidden sm:block">Manage positions</span>
+            </div>
+          </button>
+        </div>
+      </div>
+
+      {/* ── KPI Metric Summary Cards (Requirement 2: Dashboard KPIs) ───────── */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-3.5">
         {/* 1. Total Users */}
         <div className="admin-kpi-card kpi-total">
           <div className="flex items-center justify-between">
-            <span className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
+            <span className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground">
               Total Users
             </span>
-            <div className="admin-kpi-icon-wrap bg-indigo-500/10 text-indigo-400">
-              <Users className="w-5 h-5" />
+            <div className="admin-kpi-icon-wrap bg-indigo-500/10 text-indigo-400" style={{ width: '2.25rem', height: '2.25rem' }}>
+              <Users className="w-4 h-4" />
             </div>
           </div>
           <div className="mt-2 flex items-baseline gap-2">
-            <span className="text-3xl font-extrabold text-foreground tracking-tight">
+            <span className="text-2xl sm:text-3xl font-extrabold text-foreground tracking-tight">
               {totalUsers}
             </span>
-            <span className="text-xs text-muted-foreground font-medium">
-              Registered Accounts
-            </span>
           </div>
-          <p className="text-[11px] text-muted-foreground mt-2">
-            System-wide directory across all roles
+          <p className="text-[11px] text-muted-foreground mt-1">
+            Registered directory accounts
           </p>
         </div>
 
         {/* 2. Active Users */}
         <div className="admin-kpi-card kpi-active">
           <div className="flex items-center justify-between">
-            <span className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
+            <span className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground">
               Active Users
             </span>
-            <div className="admin-kpi-icon-wrap bg-emerald-500/10 text-emerald-400">
-              <UserCheck className="w-5 h-5" />
+            <div className="admin-kpi-icon-wrap bg-emerald-500/10 text-emerald-400" style={{ width: '2.25rem', height: '2.25rem' }}>
+              <UserCheck className="w-4 h-4" />
             </div>
           </div>
           <div className="mt-2 flex items-baseline gap-2">
-            <span className="text-3xl font-extrabold text-foreground tracking-tight">
+            <span className="text-2xl sm:text-3xl font-extrabold text-foreground tracking-tight">
               {activeUsers}
             </span>
-            <span className="text-xs font-semibold px-1.5 py-0.5 rounded bg-emerald-500/15 text-emerald-400 border border-emerald-500/30">
+            <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded bg-emerald-500/15 text-emerald-400 border border-emerald-500/30">
               {activePercentage}%
             </span>
           </div>
-          <p className="text-[11px] text-muted-foreground mt-2">
-            Authorized and active in current session
+          <p className="text-[11px] text-muted-foreground mt-1">
+            Currently authorized & active
           </p>
         </div>
 
         {/* 3. Inactive Users */}
         <div className="admin-kpi-card kpi-inactive">
           <div className="flex items-center justify-between">
-            <span className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
+            <span className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground">
               Inactive Users
             </span>
-            <div className="admin-kpi-icon-wrap bg-rose-500/10 text-rose-400">
-              <UserX className="w-5 h-5" />
+            <div className="admin-kpi-icon-wrap bg-rose-500/10 text-rose-400" style={{ width: '2.25rem', height: '2.25rem' }}>
+              <UserX className="w-4 h-4" />
             </div>
           </div>
           <div className="mt-2 flex items-baseline gap-2">
-            <span className="text-3xl font-extrabold text-foreground tracking-tight">
+            <span className="text-2xl sm:text-3xl font-extrabold text-foreground tracking-tight">
               {inactiveUsers}
             </span>
-            <span className="text-xs text-muted-foreground font-medium">
-              Deactivated
-            </span>
           </div>
-          <p className="text-[11px] text-muted-foreground mt-2">
-            Access revoked or suspended accounts
+          <p className="text-[11px] text-muted-foreground mt-1">
+            Suspended or revoked accounts
           </p>
         </div>
 
-        {/* 4. Role Breakdown Summary */}
-        <div className="admin-kpi-card kpi-breakdown">
+        {/* 4. HR Users */}
+        <div className="admin-kpi-card kpi-hr">
           <div className="flex items-center justify-between">
-            <span className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
-              Role Distribution
+            <span className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground">
+              HR Users
             </span>
-            <div className="admin-kpi-icon-wrap bg-purple-500/10 text-purple-400">
-              <KeyRound className="w-5 h-5" />
+            <div className="admin-kpi-icon-wrap bg-blue-500/10 text-blue-400" style={{ width: '2.25rem', height: '2.25rem' }}>
+              <Briefcase className="w-4 h-4" />
             </div>
           </div>
-          <div className="mt-2.5 flex items-center gap-2 flex-wrap">
-            <span className="role-pill-metric role-pill-admin text-xs">
-              <span className="font-bold">{adminCount}</span> Admins
+          <div className="mt-2 flex items-baseline gap-2">
+            <span className="text-2xl sm:text-3xl font-extrabold text-foreground tracking-tight">
+              {hrCount}
             </span>
-            <span className="role-pill-metric role-pill-hr text-xs">
-              <span className="font-bold">{hrCount}</span> HR
-            </span>
-            <span className="role-pill-metric role-pill-candidate text-xs">
-              <span className="font-bold">{candidateCount}</span> Candidates
+            <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded bg-blue-500/15 text-blue-400 border border-blue-500/30">
+              {hrPct}%
             </span>
           </div>
-          <p className="text-[11px] text-muted-foreground mt-2">
-            Privilege segmentation ratio
+          <p className="text-[11px] text-muted-foreground mt-1">
+            Recruiting team members
+          </p>
+        </div>
+
+        {/* 5. Candidates */}
+        <div className="admin-kpi-card kpi-candidates">
+          <div className="flex items-center justify-between">
+            <span className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground">
+              Candidates
+            </span>
+            <div className="admin-kpi-icon-wrap bg-purple-500/10 text-purple-400" style={{ width: '2.25rem', height: '2.25rem' }}>
+              <Users className="w-4 h-4" />
+            </div>
+          </div>
+          <div className="mt-2 flex items-baseline gap-2">
+            <span className="text-2xl sm:text-3xl font-extrabold text-foreground tracking-tight">
+              {candidateCount}
+            </span>
+            <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded bg-purple-500/15 text-purple-400 border border-purple-500/30">
+              {candidatePct}%
+            </span>
+          </div>
+          <p className="text-[11px] text-muted-foreground mt-1">
+            Applicants & active profiles
+          </p>
+        </div>
+
+        {/* 6. Open Job Positions */}
+        <div className="admin-kpi-card kpi-jobs">
+          <div className="flex items-center justify-between">
+            <span className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground">
+              Open Positions
+            </span>
+            <div className="admin-kpi-icon-wrap bg-amber-500/10 text-amber-400" style={{ width: '2.25rem', height: '2.25rem' }}>
+              <TrendingUp className="w-4 h-4" />
+            </div>
+          </div>
+          <div className="mt-2 flex items-baseline gap-2">
+            <span className="text-2xl sm:text-3xl font-extrabold text-foreground tracking-tight">
+              {openJobsCount}
+            </span>
+            <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded bg-amber-500/15 text-amber-400 border border-amber-500/30">
+              {totalJobsCount} total
+            </span>
+          </div>
+          <p className="text-[11px] text-muted-foreground mt-1">
+            Published active requisitions
           </p>
         </div>
       </div>
+
+      {/* ── TAB 0: Executive Overview Landing Page ─────────────────────────── */}
+      {activeTab === 'overview' && (
+        <div className="space-y-6 animate-fadeIn">
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            {/* Column 1: User Role Distribution Widget */}
+            <div className="p-5 rounded-2xl bg-card border border-border shadow-sm flex flex-col justify-between">
+              <div>
+                <div className="flex items-center justify-between pb-3 border-b border-border">
+                  <div className="flex items-center gap-2">
+                    <KeyRound className="w-4 h-4 text-primary" />
+                    <h3 className="text-sm font-bold text-foreground">
+                      User Role Distribution
+                    </h3>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => handleTabChange('rbac')}
+                    className="text-xs text-primary hover:underline font-semibold"
+                  >
+                    View RBAC Matrix
+                  </button>
+                </div>
+
+                <p className="text-xs text-muted-foreground mt-3">
+                  System privilege breakdown across all provisioned accounts in this organization.
+                </p>
+
+                {/* Visual Segmented Bar */}
+                <div className="mt-4 h-3 w-full rounded-full bg-muted overflow-hidden flex">
+                  <div
+                    style={{ width: `${adminPct}%` }}
+                    className="bg-purple-500 h-full transition-all"
+                    title={`Admins: ${adminCount} (${adminPct}%)`}
+                  />
+                  <div
+                    style={{ width: `${hrPct}%` }}
+                    className="bg-blue-500 h-full transition-all"
+                    title={`HR: ${hrCount} (${hrPct}%)`}
+                  />
+                  <div
+                    style={{ width: `${candidatePct}%` }}
+                    className="bg-emerald-500 h-full transition-all"
+                    title={`Candidates: ${candidateCount} (${candidatePct}%)`}
+                  />
+                </div>
+
+                {/* Role Details List */}
+                <div className="mt-5 space-y-3">
+                  <div className="flex items-center justify-between p-2.5 rounded-xl bg-purple-500/5 border border-purple-500/20">
+                    <div className="flex items-center gap-2.5">
+                      <div className="w-2.5 h-2.5 rounded-full bg-purple-500" />
+                      <div>
+                        <span className="text-xs font-bold text-foreground block">
+                          Administrators (ADMIN)
+                        </span>
+                        <span className="text-[11px] text-muted-foreground">
+                          Full system control, user provisioning, security audits
+                        </span>
+                      </div>
+                    </div>
+                    <div className="text-right">
+                      <span className="text-sm font-extrabold text-foreground block">
+                        {adminCount}
+                      </span>
+                      <span className="text-[10px] text-muted-foreground">
+                        {adminPct}%
+                      </span>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center justify-between p-2.5 rounded-xl bg-blue-500/5 border border-blue-500/20">
+                    <div className="flex items-center gap-2.5">
+                      <div className="w-2.5 h-2.5 rounded-full bg-blue-500" />
+                      <div>
+                        <span className="text-xs font-bold text-foreground block">
+                          HR Recruiters (HR)
+                        </span>
+                        <span className="text-[11px] text-muted-foreground">
+                          Job requisitions, pipeline, interviews, offers
+                        </span>
+                      </div>
+                    </div>
+                    <div className="text-right">
+                      <span className="text-sm font-extrabold text-foreground block">
+                        {hrCount}
+                      </span>
+                      <span className="text-[10px] text-muted-foreground">
+                        {hrPct}%
+                      </span>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center justify-between p-2.5 rounded-xl bg-emerald-500/5 border border-emerald-500/20">
+                    <div className="flex items-center gap-2.5">
+                      <div className="w-2.5 h-2.5 rounded-full bg-emerald-500" />
+                      <div>
+                        <span className="text-xs font-bold text-foreground block">
+                          Candidates (CANDIDATE)
+                        </span>
+                        <span className="text-[11px] text-muted-foreground">
+                          Job applications, status tracker, onboarding
+                        </span>
+                      </div>
+                    </div>
+                    <div className="text-right">
+                      <span className="text-sm font-extrabold text-foreground block">
+                        {candidateCount}
+                      </span>
+                      <span className="text-[10px] text-muted-foreground">
+                        {candidatePct}%
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div className="mt-5 pt-3 border-t border-border flex items-center justify-between text-xs">
+                <span className="text-muted-foreground">
+                  Need to change user roles?
+                </span>
+                <button
+                  type="button"
+                  onClick={() => handleTabChange('users')}
+                  className="font-bold text-primary hover:underline flex items-center gap-1"
+                >
+                  Manage Directory <ArrowRight className="w-3 h-3" />
+                </button>
+              </div>
+            </div>
+
+            {/* Column 2 & 3: Recent System Activity Feed */}
+            <div className="lg:col-span-2 p-5 rounded-2xl bg-card border border-border shadow-sm flex flex-col justify-between">
+              <div>
+                <div className="flex items-center justify-between pb-3 border-b border-border">
+                  <div className="flex items-center gap-2">
+                    <Activity className="w-4 h-4 text-emerald-400" />
+                    <h3 className="text-sm font-bold text-foreground">
+                      Recent System Activity & Audit Events
+                    </h3>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => handleTabChange('activity')}
+                    className="text-xs text-primary hover:underline font-semibold flex items-center gap-1"
+                  >
+                    View All {auditLogs.length} Events <ArrowRight className="w-3 h-3" />
+                  </button>
+                </div>
+
+                <p className="text-xs text-muted-foreground mt-3">
+                  Live operational feed recording recent administrative, candidate, and recruitment pipeline transitions.
+                </p>
+
+                {/* Activity List */}
+                <div className="mt-4 divide-y divide-border/60">
+                  {auditLogs.slice(0, 5).map((log, idx) => {
+                    const timeStr = log.changed_at
+                      ? new Date(log.changed_at).toLocaleString('en-US', {
+                          month: 'short',
+                          day: 'numeric',
+                          hour: '2-digit',
+                          minute: '2-digit'
+                        })
+                      : 'Just now';
+
+                    return (
+                      <div key={log.id || idx} className="py-3 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+                        <div className="flex items-start gap-2.5">
+                          <div className="w-7 h-7 rounded-lg bg-muted flex items-center justify-center text-xs font-bold text-foreground flex-shrink-0 mt-0.5">
+                            {log.changed_by_role === 'ADMIN' ? 'AD' : 'HR'}
+                          </div>
+                          <div>
+                            <div className="flex items-center gap-2 flex-wrap">
+                              <span className="text-xs font-bold text-foreground">
+                                {log.candidate_name || `Event #${log.id}`}
+                              </span>
+                              {log.job_title && (
+                                <span className="text-[11px] text-muted-foreground">
+                                  · {log.job_title}
+                                </span>
+                              )}
+                              <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-primary/10 text-primary border border-primary/20">
+                                {log.from_stage && log.to_stage ? `${log.from_stage} → ${log.to_stage}` : (log.to_stage || 'UPDATED')}
+                              </span>
+                            </div>
+                            <p className="text-[11px] text-muted-foreground mt-0.5">
+                              {log.notes || `State changed by ${log.changed_by_name || 'System Operator'}`}
+                            </p>
+                          </div>
+                        </div>
+
+                        <div className="flex items-center gap-2 text-[11px] text-muted-foreground self-end sm:self-center flex-shrink-0">
+                          <Clock className="w-3 h-3" />
+                          <span>{timeStr}</span>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+
+              <div className="mt-5 pt-3 border-t border-border flex items-center justify-between text-xs">
+                <span className="text-muted-foreground">
+                  Audit logs support RFC-4180 CSV export & date filtering.
+                </span>
+                <button
+                  type="button"
+                  onClick={() => handleTabChange('activity')}
+                  className="font-bold text-primary hover:underline flex items-center gap-1"
+                >
+                  Explore Audit Log View <ArrowRight className="w-3 h-3" />
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* ── TAB 1: User Management Directory (Requirements 3.B, 3.C, 3.D) ──── */}
       {activeTab === 'users' && (
