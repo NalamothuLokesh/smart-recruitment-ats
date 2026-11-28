@@ -16,7 +16,9 @@ import {
   UserPlus,
   CornerDownLeft,
   X,
-  FileText
+  FileText,
+  Users,
+  Activity
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { useTheme } from '../../context/ThemeContext';
@@ -31,19 +33,23 @@ export default function CommandPalette({ open, onClose }) {
   const { isDark, toggleTheme } = useTheme();
 
   const items = useMemo(() => {
-    const list = [
-      {
+    const list = [];
+
+    // Job Openings: Visible to Candidates, HR, and Guests; Hidden for System Admin
+    if (!isAdmin) {
+      list.push({
         id: 'nav-jobs',
         label: 'Job Openings',
         description: 'Browse open career requisitions & apply',
         icon: Briefcase,
         category: 'Navigation',
         action: () => { navigate('/jobs'); onClose(); },
-      },
-    ];
+      });
+    }
 
     if (isAuthenticated) {
-      if (isCandidate || isAdmin || isHR) {
+      // Candidate Exclusive
+      if (isCandidate) {
         list.push({
           id: 'nav-candidate',
           label: 'Candidate Portal',
@@ -54,22 +60,23 @@ export default function CommandPalette({ open, onClose }) {
         });
       }
 
-      if (isHR || isAdmin) {
+      // HR Dedicated Recruitment Operations
+      if (isHR) {
         list.push(
           {
             id: 'nav-hr-jobs',
             label: 'Job Requisitions Management',
             description: 'Create, edit, and publish job postings',
             icon: FileText,
-            category: 'Navigation',
+            category: 'Recruitment',
             action: () => { navigate('/hr/jobs'); onClose(); },
           },
           {
             id: 'nav-pipeline',
             label: 'Recruiter Pipeline (Kanban)',
-            description: 'Manage 6-stage candidate recruitment workflow',
+            description: 'Manage candidate stages and transitions',
             icon: Kanban,
-            category: 'Navigation',
+            category: 'Recruitment',
             action: () => { navigate('/pipeline'); onClose(); },
           },
           {
@@ -77,15 +84,15 @@ export default function CommandPalette({ open, onClose }) {
             label: 'Interview Scheduler',
             description: 'Manage interview bookings & submit scorecards',
             icon: Calendar,
-            category: 'Navigation',
+            category: 'Recruitment',
             action: () => { navigate('/interviews'); onClose(); },
           },
           {
             id: 'nav-offers',
             label: 'Offers & Onboarding',
-            description: 'Generate employment offers and onboarding checklists',
+            description: 'Generate employment offers and checklists',
             icon: Gift,
-            category: 'Navigation',
+            category: 'Recruitment',
             action: () => { navigate('/offers'); onClose(); },
           },
           {
@@ -93,21 +100,56 @@ export default function CommandPalette({ open, onClose }) {
             label: 'Executive Hiring Analytics',
             description: 'Track time-to-hire, pass rates, and funnel KPIs',
             icon: BarChart3,
-            category: 'Navigation',
+            category: 'Recruitment',
             action: () => { navigate('/analytics'); onClose(); },
           }
         );
       }
 
+      // Admin Dedicated Administration & Operations
       if (isAdmin) {
-        list.push({
-          id: 'nav-admin',
-          label: 'System Admin Console',
-          description: 'User directory, RBAC alterations, and audit logs',
-          icon: ShieldCheck,
-          category: 'Navigation',
-          action: () => { navigate('/admin'); onClose(); },
-        });
+        list.push(
+          {
+            id: 'nav-admin',
+            label: 'System Admin Console',
+            description: 'Executive dashboard and system health',
+            icon: ShieldCheck,
+            category: 'Administration',
+            action: () => { navigate('/admin'); onClose(); },
+          },
+          {
+            id: 'nav-admin-users',
+            label: 'User Directory Management',
+            description: 'Search, filter, activate/deactivate, and assign roles',
+            icon: Users,
+            category: 'Administration',
+            action: () => { navigate('/admin/users'); onClose(); },
+          },
+          {
+            id: 'nav-admin-audit',
+            label: 'System Audit Logs',
+            description: 'Operational audit trail with CSV export',
+            icon: Activity,
+            category: 'Administration',
+            action: () => { navigate('/admin/audit'); onClose(); },
+          },
+          {
+            id: 'nav-admin-analytics',
+            label: 'Executive Hiring Analytics',
+            description: 'Review organization-wide hiring metrics and funnels',
+            icon: BarChart3,
+            category: 'Administration',
+            action: () => { navigate('/analytics'); onClose(); },
+          },
+          {
+            id: 'nav-admin-jobs',
+            label: 'Job Requisitions Oversight',
+            description: 'Inspect organizational job requisitions and statuses',
+            icon: FileText,
+            category: 'Administration',
+            action: () => { navigate('/hr/jobs'); onClose(); },
+          }
+        );
       }
     }
 

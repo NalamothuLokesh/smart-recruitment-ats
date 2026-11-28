@@ -21,7 +21,19 @@ apiClient.interceptors.request.use(
   (error) => Promise.reject(error)
 );
 
-// Response Interceptor: Global 401 handling
+// Helper to strip empty, null, or undefined parameters before network requests
+const cleanParams = (params = {}) => {
+  const cleaned = {};
+  Object.keys(params).forEach((key) => {
+    const val = params[key];
+    if (val !== '' && val !== undefined && val !== null) {
+      cleaned[key] = val;
+    }
+  });
+  return cleaned;
+};
+
+// Response Interceptor: Global 401 handling and enriched error extraction
 apiClient.interceptors.response.use(
   (response) => response.data,
   (error) => {
@@ -33,8 +45,18 @@ apiClient.interceptors.response.use(
         window.location.href = '/login?session_expired=true';
       }
     }
-    const message = error.response?.data?.message || error.message || 'An unexpected error occurred.';
-    return Promise.reject(new Error(message));
+    let message = error.response?.data?.message || error.message || 'An unexpected error occurred.';
+    if (error.response?.data?.errors && Array.isArray(error.response.data.errors)) {
+      const fieldDetails = error.response.data.errors
+        .map((e) => `${e.field || 'input'}: ${e.message}`)
+        .join('; ');
+      if (fieldDetails) {
+        message = `${message} (${fieldDetails})`;
+      }
+    }
+    const enhancedError = new Error(message);
+    enhancedError.response = error.response;
+    return Promise.reject(enhancedError);
   }
 );
 
@@ -55,18 +77,18 @@ export const authApi = {
 // 2. Admin API Client
 // ==========================================
 export const adminApi = {
-  getUsers: (params = {}) => apiClient.get('/admin/users', { params }),
+  getUsers: (params = {}) => apiClient.get('/admin/users', { params: cleanParams(params) }),
   createUser: (userData) => apiClient.post('/admin/users', userData),
   updateUserRole: (userId, role) => apiClient.patch(`/admin/users/${userId}/role`, { role }),
   updateUserStatus: (userId, isActive) => apiClient.patch(`/admin/users/${userId}/status`, { isActive }),
-  getAuditLogs: (params = {}) => apiClient.get('/admin/audit-logs', { params })
+  getAuditLogs: (params = {}) => apiClient.get('/admin/audit-logs', { params: cleanParams(params) })
 };
 
 // ==========================================
 // 3. Jobs Management API Client
 // ==========================================
 export const jobsApi = {
-  listJobs: (params = {}) => apiClient.get('/jobs', { params }),
+  listJobs: (params = {}) => apiClient.get('/jobs', { params: cleanParams(params) }),
   getJobById: (jobId) => apiClient.get(`/jobs/${jobId}`),
   createJob: (jobData) => apiClient.post('/jobs', jobData),
   updateJob: (jobId, jobData) => apiClient.put(`/jobs/${jobId}`, jobData),

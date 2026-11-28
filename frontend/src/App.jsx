@@ -89,7 +89,33 @@ function AppShell() {
               }
             />
 
-            {/* HR & Admin Recruitment Operations (Guarded: HR, ADMIN) */}
+            {/* HR Dedicated Recruitment Operations (Guarded: HR) */}
+            <Route
+              path="/pipeline"
+              element={
+                <ProtectedRoute allowedRoles={['HR']}>
+                  <HrPipelineBoard />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/interviews"
+              element={
+                <ProtectedRoute allowedRoles={['HR']}>
+                  <InterviewSchedulerPage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/offers"
+              element={
+                <ProtectedRoute allowedRoles={['HR']}>
+                  <OfferOnboardingPage />
+                </ProtectedRoute>
+              }
+            />
+
+            {/* Job Requisitions (HR Recruiter and Admin Oversight) */}
             <Route
               path="/hr/jobs"
               element={
@@ -98,30 +124,8 @@ function AppShell() {
                 </ProtectedRoute>
               }
             />
-            <Route
-              path="/pipeline"
-              element={
-                <ProtectedRoute allowedRoles={['HR', 'ADMIN']}>
-                  <HrPipelineBoard />
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/interviews"
-              element={
-                <ProtectedRoute allowedRoles={['HR', 'ADMIN']}>
-                  <InterviewSchedulerPage />
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/offers"
-              element={
-                <ProtectedRoute allowedRoles={['HR', 'ADMIN']}>
-                  <OfferOnboardingPage />
-                </ProtectedRoute>
-              }
-            />
+
+            {/* Hiring Analytics (HR and ADMIN) */}
             <Route
               path="/analytics"
               element={
@@ -134,6 +138,22 @@ function AppShell() {
             {/* System Admin Console (Guarded: ADMIN) */}
             <Route
               path="/admin"
+              element={
+                <ProtectedRoute allowedRoles={['ADMIN']}>
+                  <AdminDashboard />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/admin/users"
+              element={
+                <ProtectedRoute allowedRoles={['ADMIN']}>
+                  <AdminDashboard />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/admin/audit"
               element={
                 <ProtectedRoute allowedRoles={['ADMIN']}>
                   <AdminDashboard />
