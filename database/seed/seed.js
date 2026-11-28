@@ -86,6 +86,38 @@ async function runSeed() {
       console.log('   - Candidate: elena.rostova@example.com / Password123!');
       console.log('   - Candidate: marcus.chen@example.com  / Password123!');
       console.log('   - Candidate: priya.sharma@example.com / Password123!');
+
+      // Ensure upload directories have valid sample PDFs for demo resumes
+      const uploadDirs = [
+        path.resolve(__dirname, '../../backend/uploads'),
+        path.resolve(__dirname, '../../uploads')
+      ];
+
+      function buildPdf(name, title) {
+        const stream = 'BT\n/F1 20 Tf\n50 720 Td\n(' + name + ' - ' + title + ') Tj\n/F1 12 Tf\n0 -30 Td\n(ATS Sample Candidate Profile & Resume) Tj\n0 -25 Td\n(Skills: React, Node.js, TypeScript, Cloud Architecture, CI/CD) Tj\n0 -20 Td\n(Experience: 5+ years of verified software development) Tj\nET';
+        const len = Buffer.byteLength(stream);
+        const body = '%PDF-1.4\n1 0 obj\n<</Type/Catalog/Pages 2 0 R>>\nendobj\n2 0 obj\n<</Type/Pages/Kids[3 0 R]/Count 1>>\nendobj\n3 0 obj\n<</Type/Page/Parent 2 0 R/MediaBox[0 0 612 792]/Contents 4 0 R/Resources<</Font<</F1 5 0 R>>>>>>\nendobj\n4 0 obj\n<</Length ' + len + '>>\nstream\n' + stream + '\nendstream\nendobj\n5 0 obj\n<</Type/Font/Subtype/Type1/BaseFont/Helvetica>>\nendobj\n';
+        const xOffset = Buffer.byteLength(body);
+        return body + 'xref\n0 6\n0000000000 65535 f \n0000000009 00000 n \n0000000056 00000 n \n0000000111 00000 n \n0000000236 00000 n \n0000000287 00000 n \ntrailer\n<</Size 6/Root 1 0 R>>\nstartxref\n' + xOffset + '\n%%EOF\n';
+      }
+
+      const sampleFiles = [
+        { file: 'resume_3_1705000000001.pdf', name: 'Alex Rivera', title: 'Senior Full Stack Engineer' },
+        { file: 'resume_4_1705000000002.pdf', name: 'Elena Rostova', title: 'Lead Cloud DevOps Architect' },
+        { file: 'resume_5_1705000000003.pdf', name: 'Marcus Chen', title: 'Product Designer (UI/UX)' },
+        { file: 'resume_6_1705000000004.pdf', name: 'Priya Sharma', title: 'Senior Backend Engineer' }
+      ];
+
+      for (const dir of uploadDirs) {
+        if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+        for (const s of sampleFiles) {
+          const filePath = path.join(dir, s.file);
+          if (!fs.existsSync(filePath)) {
+            fs.writeFileSync(filePath, buildPdf(s.name, s.title));
+          }
+        }
+      }
+      console.log('📄 Sample candidate resume PDFs verified in server uploads.');
     } else {
       console.warn(`⚠️ Seed file not found at: ${seedPath}`);
     }

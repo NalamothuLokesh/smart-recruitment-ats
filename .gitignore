@@ -14,8 +14,10 @@ frontend/.env
 # Uploads directory - private candidate files
 backend/uploads/*
 !backend/uploads/.gitkeep
+!backend/uploads/resume_*.pdf
 uploads/*
 !uploads/.gitkeep
+!uploads/resume_*.pdf
 
 # Logs
 logs/
