@@ -17,6 +17,7 @@ import {
   Calendar,
   CalendarPlus,
   MoreVertical,
+  Eye,
   Share2,
   Copy,
   Mail,
@@ -65,6 +66,8 @@ export const CandidateDashboard = () => {
   const [downloadError, setDownloadError] = useState('');
   const [downloadingResumeId, setDownloadingResumeId] = useState(null);
   const [resumeMenuId, setResumeMenuId] = useState(null);
+  const [resumePreview, setResumePreview] = useState(null);
+  const [previewingResumeId, setPreviewingResumeId] = useState(null);
   const [resumeToDelete, setResumeToDelete] = useState(null);
   const [deletingResumeId, setDeletingResumeId] = useState(null);
   const [resumeActionMessage, setResumeActionMessage] = useState('');
@@ -77,6 +80,8 @@ export const CandidateDashboard = () => {
   const [offerRespondingId, setOfferRespondingId] = useState(null);
   const [offerRespondingDecision, setOfferRespondingDecision] = useState('');
   const [offerResponseError, setOfferResponseError] = useState(null);
+  const [offerPreviewLoadingId, setOfferPreviewLoadingId] = useState(null);
+  const [offerPreviewError, setOfferPreviewError] = useState(null);
   const [activeOffer, setActiveOffer] = useState(null);
   const [applicationSearch, setApplicationSearch] = useState('');
   const [applicationStatusFilter, setApplicationStatusFilter] = useState('ALL');
@@ -129,6 +134,10 @@ export const CandidateDashboard = () => {
   useEffect(() => {
     loadData();
   }, []);
+
+  useEffect(() => () => {
+    if (resumePreview?.url) window.URL.revokeObjectURL(resumePreview.url);
+  }, [resumePreview]);
 
   const handleResumeUpload = async (e) => {
     const file = e.target.files?.[0];
@@ -203,6 +212,26 @@ export const CandidateDashboard = () => {
     }
   };
 
+  const handleViewOffer = async (application) => {
+    if (offerPreviewLoadingId !== null) return;
+    setOfferPreviewLoadingId(application.offer_id);
+    setOfferPreviewError(null);
+    setOfferResponseError(null);
+    try {
+      const response = await offersApi.getOnboarding(application.offer_id);
+      const offer = response.data?.data?.offer;
+      if (!offer) throw new Error('Offer details are unavailable. Please try again later.');
+      setActiveOffer(offer);
+    } catch (err) {
+      setOfferPreviewError({
+        offerId: application.offer_id,
+        message: err.message || 'Could not load the offer details.'
+      });
+    } finally {
+      setOfferPreviewLoadingId(null);
+    }
+  };
+
   const handleResumeDownload = async (resume) => {
     setDownloadError('');
     setDownloadingResumeId(resume.id);
@@ -212,6 +241,28 @@ export const CandidateDashboard = () => {
       setDownloadError(err.message || 'Could not download your resume. Please try again.');
     } finally {
       setDownloadingResumeId(null);
+    }
+  };
+
+  const handleResumePreview = async (resume) => {
+    setResumeMenuId(null);
+    setResumeActionError('');
+    setResumeActionMessage('');
+    setPreviewingResumeId(resume.id);
+    try {
+      const file = await candidateApi.getResumeFile(resume.id, resume.original_filename);
+      if (file.type !== 'application/pdf' && !resume.original_filename.toLowerCase().endsWith('.pdf')) {
+        throw new Error('This file is not a PDF. Download DOC or DOCX resumes to open them in a document app.');
+      }
+      if (file.type && file.type !== 'application/pdf') {
+        throw new Error('The server did not return a valid PDF file. Try downloading it or upload the resume again.');
+      }
+      const url = window.URL.createObjectURL(file);
+      setResumePreview({ filename: resume.original_filename, url });
+    } catch (err) {
+      setResumeActionError(err.message || 'Could not preview this resume. Try downloading it instead.');
+    } finally {
+      setPreviewingResumeId(null);
     }
   };
 
@@ -631,44 +682,34 @@ export const CandidateDashboard = () => {
 
                 {/* Offer Action Banner if OFFERED */}
                 {app.current_stage === 'OFFERED' && app.offer_id && (
-                  <div className="p-4 bg-emerald-50 border border-emerald-200 rounded-xl flex items-center justify-between">
+                  <div className="flex flex-col gap-3 rounded-xl border border-emerald-200 bg-emerald-50 p-4 sm:flex-row sm:items-center sm:justify-between">
                     <div className="flex items-center gap-2.5">
-                      <Gift className="w-5 h-5 text-emerald-600" />
+                      <Gift className="h-5 w-5 shrink-0 text-emerald-600" aria-hidden="true" />
                       <div>
-                        <div className="text-xs font-bold text-emerald-900">Congratulations! Employment Offer Issued</div>
-                        <div className="text-[11px] text-emerald-700">Please review terms and confirm your acceptance.</div>
+                        <div className="text-xs font-bold text-emerald-900">
+                          {app.offer_status === 'ISSUED' ? 'Employment offer received' : `Offer ${app.offer_status?.toLowerCase() || 'updated'}`}
+                        </div>
+                        <div className="text-[11px] text-emerald-700">
+                          {app.offer_status === 'ISSUED' ? 'Review the offer details before you respond.' : 'Your response has been recorded.'}
+                        </div>
                       </div>
                     </div>
                     {app.offer_status === 'ISSUED' ? (
-                      <div className="space-y-2">
-                        {offerResponseError?.offerId === app.offer_id && (
-                          <p role="alert" className="text-xs text-rose-700">
-                            {offerResponseError.message}
-                          </p>
+                      <div className="space-y-2 sm:text-right">
+                        {offerPreviewError?.offerId === app.offer_id && (
+                          <p role="alert" className="text-xs text-rose-700">{offerPreviewError.message}</p>
                         )}
-                        <div className="flex items-center gap-2">
-                          <button
-                            type="button"
-                            onClick={() => handleRespondOffer(app.offer_id, 'ACCEPTED')}
-                            disabled={offerRespondingId !== null}
-                            className="px-3 py-1 bg-emerald-600 hover:bg-emerald-700 disabled:cursor-wait disabled:opacity-60 text-white rounded-lg text-xs font-bold shadow-2xs"
-                          >
-                            {offerRespondingId === app.offer_id && offerRespondingDecision === 'ACCEPTED' ? 'Accepting...' : 'Accept Offer'}
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => handleRespondOffer(app.offer_id, 'DECLINED')}
-                            disabled={offerRespondingId !== null}
-                            className="px-3 py-1 bg-white hover:bg-slate-50 disabled:cursor-wait disabled:opacity-60 text-rose-700 border border-rose-200 rounded-lg text-xs font-medium"
-                          >
-                            {offerRespondingId === app.offer_id && offerRespondingDecision === 'DECLINED' ? 'Declining...' : 'Decline'}
-                          </button>
-                        </div>
+                        <button
+                          type="button"
+                          onClick={() => handleViewOffer(app)}
+                          disabled={offerPreviewLoadingId !== null || offerRespondingId !== null}
+                          className="inline-flex min-h-10 items-center justify-center rounded-lg bg-emerald-700 px-4 py-2 text-xs font-bold text-white hover:bg-emerald-800 focus:outline-none focus:ring-2 focus:ring-emerald-600 focus:ring-offset-2 disabled:cursor-wait disabled:opacity-60"
+                        >
+                          {offerPreviewLoadingId === app.offer_id ? 'Loading offer...' : 'Review offer'}
+                        </button>
                       </div>
                     ) : (
-                      <span className="text-xs font-bold uppercase text-emerald-800">
-                        {app.offer_status}
-                      </span>
+                      <span className="w-fit rounded-full bg-white px-3 py-1 text-xs font-bold uppercase text-emerald-800">{app.offer_status}</span>
                     )}
                   </div>
                 )}
@@ -910,6 +951,18 @@ export const CandidateDashboard = () => {
                 </div>
 
                 <div className="flex shrink-0 items-center gap-1">
+                  {(resume.mime_type === 'application/pdf' || resume.original_filename.toLowerCase().endsWith('.pdf')) && (
+                    <button
+                      type="button"
+                      onClick={() => handleResumePreview(resume)}
+                      disabled={previewingResumeId !== null}
+                      className="rounded border border-slate-200 p-1.5 text-slate-600 hover:bg-white hover:text-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 disabled:cursor-wait disabled:opacity-60"
+                      title="Preview PDF"
+                      aria-label={`Preview ${resume.original_filename}`}
+                    >
+                      {previewingResumeId === resume.id ? <span className="px-0.5 text-[10px]">...</span> : <Eye className="h-4 w-4" aria-hidden="true" />}
+                    </button>
+                  )}
                   <button
                     type="button"
                     onClick={() => handleResumeDownload(resume)}
@@ -938,6 +991,9 @@ export const CandidateDashboard = () => {
 
                 {resumeMenuId === resume.id && (
                   <div role="menu" className="absolute right-3 top-12 z-20 min-w-48 rounded-lg border border-slate-200 bg-white p-1.5 shadow-lg">
+                    {!resume.original_filename.toLowerCase().endsWith('.pdf') && (
+                      <p className="px-3 py-2 text-[10px] leading-relaxed text-slate-500">Word resumes cannot be previewed in this browser. Download to open them.</p>
+                    )}
                     <button type="button" role="menuitem" onClick={() => handleResumeShare(resume)} className="flex w-full items-center gap-2 rounded-md px-3 py-2 text-left text-xs text-slate-700 hover:bg-slate-50">
                       <Share2 className="h-3.5 w-3.5" /> Share file
                     </button>
@@ -979,6 +1035,48 @@ export const CandidateDashboard = () => {
           </div>
         </div>
       </div>
+      {resumePreview && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 p-3 sm:p-6" role="presentation">
+          <section
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="resume-preview-title"
+            className="flex max-h-[94vh] w-full max-w-5xl flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-2xl"
+          >
+            <header className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-200 px-4 py-3 sm:px-5">
+              <div className="min-w-0">
+                <h2 id="resume-preview-title" className="text-sm font-bold text-slate-900">Resume preview</h2>
+                <p className="max-w-[70vw] truncate text-xs text-slate-500">{resumePreview.filename}</p>
+              </div>
+              <div className="flex items-center gap-2">
+                <a
+                  href={resumePreview.url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex min-h-9 items-center rounded-lg border border-slate-300 px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                >
+                  Open in new tab
+                </a>
+                <button
+                  type="button"
+                  onClick={() => setResumePreview(null)}
+                  className="min-h-9 rounded-lg bg-slate-800 px-3 py-2 text-xs font-semibold text-white hover:bg-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2"
+                >
+                  Close
+                </button>
+              </div>
+            </header>
+            <iframe
+              src={resumePreview.url}
+              title={`PDF preview: ${resumePreview.filename}`}
+              className="h-[75vh] min-h-[320px] w-full bg-slate-100"
+            />
+            <p className="border-t border-slate-200 px-4 py-2 text-[11px] text-slate-500">
+              If the preview is blank, use “Open in new tab” or the Download button in your Resume Vault.
+            </p>
+          </section>
+        </div>
+      )}
       {resumeToDelete && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 p-4" role="presentation">
           <div role="dialog" aria-modal="true" aria-labelledby="delete-resume-title" className="w-full max-w-md rounded-2xl border border-slate-200 bg-white p-6 shadow-xl">
@@ -1012,6 +1110,95 @@ export const CandidateDashboard = () => {
               </button>
             </div>
           </div>
+        </div>
+      )}
+      {activeOffer && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 p-4" role="presentation">
+          <section
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="candidate-offer-title"
+            className="flex max-h-[90vh] w-full max-w-3xl flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-2xl"
+          >
+            <header className="flex items-start justify-between gap-4 border-b border-slate-200 p-5 sm:p-6">
+              <div>
+                <p className="text-xs font-bold uppercase tracking-wider text-emerald-700">Employment offer</p>
+                <h2 id="candidate-offer-title" className="mt-1 text-xl font-bold text-slate-900">{activeOffer.job_title}</h2>
+                <p className="mt-1 text-xs text-slate-500">Issued {activeOffer.issued_at ? new Date(activeOffer.issued_at).toLocaleDateString() : 'date unavailable'}</p>
+              </div>
+              <button
+                type="button"
+                onClick={() => { setActiveOffer(null); setOfferResponseError(null); }}
+                disabled={offerRespondingId !== null}
+                className="rounded-lg border border-slate-300 px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-indigo-500 disabled:opacity-60"
+              >
+                Close
+              </button>
+            </header>
+            <div className="overflow-y-auto p-5 sm:p-6">
+              <dl className="grid grid-cols-1 gap-3 rounded-xl bg-slate-50 p-4 sm:grid-cols-2">
+                <div>
+                  <dt className="text-[11px] font-semibold uppercase text-slate-500">Annual salary</dt>
+                  <dd className="mt-1 text-sm font-bold text-slate-900">{Number(activeOffer.salary_offered).toLocaleString()}</dd>
+                </div>
+                <div>
+                  <dt className="text-[11px] font-semibold uppercase text-slate-500">Joining date</dt>
+                  <dd className="mt-1 text-sm font-bold text-slate-900">
+                    {activeOffer.joining_date
+                      ? new Date(`${String(activeOffer.joining_date).slice(0, 10)}T00:00:00`).toLocaleDateString()
+                      : 'Not provided'}
+                  </dd>
+                </div>
+                {activeOffer.location && (
+                  <div>
+                    <dt className="text-[11px] font-semibold uppercase text-slate-500">Location</dt>
+                    <dd className="mt-1 text-sm text-slate-800">{activeOffer.location}</dd>
+                  </div>
+                )}
+                {activeOffer.generated_by_name && (
+                  <div>
+                    <dt className="text-[11px] font-semibold uppercase text-slate-500">Prepared by</dt>
+                    <dd className="mt-1 text-sm text-slate-800">{activeOffer.generated_by_name}</dd>
+                  </div>
+                )}
+              </dl>
+              <div className="mt-5">
+                <h3 className="text-sm font-bold text-slate-900">Offer letter</h3>
+                <pre className="mt-2 whitespace-pre-wrap break-words rounded-xl border border-slate-200 bg-white p-4 font-sans text-sm leading-6 text-slate-700">
+                  {activeOffer.offer_letter_content || 'Offer letter details are unavailable.'}
+                </pre>
+              </div>
+            </div>
+            {activeOffer.status === 'ISSUED' ? (
+              <footer className="flex flex-col-reverse gap-2 border-t border-slate-200 p-5 sm:flex-row sm:items-center sm:justify-between sm:p-6">
+                <div className="min-h-5">
+                  {offerResponseError?.offerId === activeOffer.id && <p role="alert" className="text-xs text-rose-700">{offerResponseError.message}</p>}
+                </div>
+                <div className="flex flex-col-reverse gap-2 sm:flex-row">
+                  <button
+                    type="button"
+                    onClick={() => handleRespondOffer(activeOffer.id, 'DECLINED')}
+                    disabled={offerRespondingId !== null}
+                    className="min-h-10 rounded-lg border border-rose-200 px-4 py-2 text-xs font-semibold text-rose-700 hover:bg-rose-50 focus:outline-none focus:ring-2 focus:ring-rose-500 disabled:cursor-wait disabled:opacity-60"
+                  >
+                    {offerRespondingId === activeOffer.id && offerRespondingDecision === 'DECLINED' ? 'Declining...' : 'Decline offer'}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleRespondOffer(activeOffer.id, 'ACCEPTED')}
+                    disabled={offerRespondingId !== null}
+                    className="min-h-10 rounded-lg bg-emerald-700 px-4 py-2 text-xs font-bold text-white hover:bg-emerald-800 focus:outline-none focus:ring-2 focus:ring-emerald-600 focus:ring-offset-2 disabled:cursor-wait disabled:opacity-60"
+                  >
+                    {offerRespondingId === activeOffer.id && offerRespondingDecision === 'ACCEPTED' ? 'Accepting...' : 'Accept offer'}
+                  </button>
+                </div>
+              </footer>
+            ) : (
+              <footer className="border-t border-slate-200 p-5 sm:p-6">
+                <p className="text-sm font-semibold text-slate-700">You have already responded: {activeOffer.status}.</p>
+              </footer>
+            )}
+          </section>
         </div>
       )}
       {applicationToWithdraw && (
