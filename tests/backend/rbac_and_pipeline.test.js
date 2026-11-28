@@ -26,6 +26,7 @@ const config = require('../../backend/src/config/env');
 const applicationService = require('../../backend/src/services/applicationService');
 const candidateService = require('../../backend/src/services/candidateService');
 const notificationService = require('../../backend/src/services/notificationService');
+const offerService = require('../../backend/src/services/offerService');
 
 describe('ATS Backend Security, RBAC & Pipeline Test Suite', () => {
   let adminToken;
@@ -384,7 +385,62 @@ describe('ATS Backend Security, RBAC & Pipeline Test Suite', () => {
     });
   });
 
-  describe('7. Candidate Resume Deletion', () => {
+  describe('7. Candidate Offer Responses', () => {
+    test('candidate accepts their own issued offer and audit history is recorded', async () => {
+      db.query
+        .mockResolvedValueOnce([[{ id: 88, application_id: 41, status: 'ISSUED', candidate_id: 7 }]])
+        .mockResolvedValueOnce([{ affectedRows: 1 }])
+        .mockResolvedValueOnce([{ insertId: 501 }])
+        .mockResolvedValueOnce([[{ id: 88, application_id: 41, status: 'ACCEPTED' }]]);
+
+      await expect(offerService.respondToOffer(7, 88, { decision: 'ACCEPTED' })).resolves.toMatchObject({
+        id: 88,
+        status: 'ACCEPTED'
+      });
+
+      expect(db.query).toHaveBeenNthCalledWith(2, expect.stringContaining('UPDATE offers SET status = ?'), ['ACCEPTED', 88]);
+      expect(db.query).toHaveBeenNthCalledWith(3, expect.stringContaining('INSERT INTO application_audit_logs'), [
+        41, 7, 'Candidate formally accepted the employment offer.'
+      ]);
+    });
+
+    test('candidate declines their own issued offer and application becomes rejected', async () => {
+      db.query
+        .mockResolvedValueOnce([[{ id: 89, application_id: 42, status: 'ISSUED', candidate_id: 7 }]])
+        .mockResolvedValueOnce([{ affectedRows: 1 }])
+        .mockResolvedValueOnce([{ insertId: 502 }])
+        .mockResolvedValueOnce([{ affectedRows: 1 }])
+        .mockResolvedValueOnce([[{ id: 89, application_id: 42, status: 'DECLINED' }]]);
+
+      await expect(offerService.respondToOffer(7, 89, { decision: 'DECLINED' })).resolves.toMatchObject({
+        id: 89,
+        status: 'DECLINED'
+      });
+
+      expect(db.query).toHaveBeenNthCalledWith(4, expect.stringContaining('current_stage = "REJECTED"'), [42]);
+    });
+
+    test('candidate cannot respond to another candidate’s offer', async () => {
+      db.query.mockResolvedValueOnce([[{ id: 88, application_id: 41, status: 'ISSUED', candidate_id: 3 }]]);
+
+      await expect(offerService.respondToOffer(7, 88, { decision: 'ACCEPTED' })).rejects.toMatchObject({ statusCode: 403 });
+      expect(db.query).toHaveBeenCalledTimes(1);
+    });
+
+    test('candidate cannot respond twice to a completed offer', async () => {
+      db.query.mockResolvedValueOnce([[{ id: 88, application_id: 41, status: 'ACCEPTED', candidate_id: 7 }]]);
+
+      await expect(offerService.respondToOffer(7, 88, { decision: 'DECLINED' })).rejects.toMatchObject({ statusCode: 400 });
+      expect(db.query).toHaveBeenCalledTimes(1);
+    });
+
+    test('rejects an invalid response without querying the database', async () => {
+      await expect(offerService.respondToOffer(7, 88, { decision: 'MAYBE' })).rejects.toMatchObject({ statusCode: 400 });
+      expect(db.query).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('8. Candidate Resume Deletion', () => {
     let connection;
     let uploadDirectory;
     const originalUploadDirectory = config.UPLOAD_DIR;
