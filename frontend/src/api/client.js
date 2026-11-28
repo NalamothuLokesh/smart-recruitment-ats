@@ -72,31 +72,72 @@ export const jobsApi = {
 // ==========================================
 // 4. Candidate & Resumes API Client
 // ==========================================
+
 export const candidateApi = {
-  getProfile: (candidateId) => apiClient.get('/candidates/profile', { params: candidateId ? { candidateId } : {} }),
-  updateProfile: (profileData) => apiClient.put('/candidates/profile', profileData),
+  getProfile: (candidateId) =>
+    apiClient.get('/candidates/profile', {
+      params: candidateId ? { candidateId } : {}
+    }),
+
+  updateProfile: (profileData) =>
+    apiClient.put('/candidates/profile', profileData),
+
   uploadResume: (file) => {
     const formData = new FormData();
     formData.append('resume', file);
+
     return apiClient.post('/candidates/resume', formData, {
       headers: { 'Content-Type': 'multipart/form-data' }
     });
   },
+
+  // Existing function: Download resume
   downloadResume: async (resumeId, filename = 'resume.pdf') => {
     const token = localStorage.getItem('ats_token');
-    const response = await fetch(`${API_BASE_URL}/candidates/resume/${resumeId}/download`, {
-      headers: { Authorization: `Bearer ${token}` }
-    });
-    if (!response.ok) throw new Error('Failed to download resume file.');
+
+    const response = await fetch(
+      `${API_BASE_URL}/candidates/resume/${resumeId}/download`,
+      {
+        headers: { Authorization: `Bearer ${token}` }
+      }
+    );
+
+    if (!response.ok) {
+      throw new Error('Failed to download resume file.');
+    }
+
     const blob = await response.blob();
     const url = window.URL.createObjectURL(blob);
+
     const link = document.createElement('a');
     link.href = url;
     link.setAttribute('download', filename);
+
     document.body.appendChild(link);
     link.click();
     link.parentNode.removeChild(link);
+
     window.URL.revokeObjectURL(url);
+  },
+
+  // New function: Preview resume
+  previewResume: async (resumeId) => {
+    const token = localStorage.getItem('ats_token');
+
+    const response = await fetch(
+      `${API_BASE_URL}/candidates/resume/${resumeId}/preview`,
+      {
+        headers: { Authorization: `Bearer ${token}` }
+      }
+    );
+
+    if (!response.ok) {
+      throw new Error('Failed to preview resume file.');
+    }
+
+    const blob = await response.blob();
+
+    return window.URL.createObjectURL(blob);
   }
 };
 

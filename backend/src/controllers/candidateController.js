@@ -1,3 +1,4 @@
+
 const path = require('path');
 const candidateService = require('../services/candidateService');
 
@@ -5,9 +6,10 @@ class CandidateController {
   async getProfile(req, res, next) {
     try {
       // If HR or ADMIN passes ?candidateId=, allow inspecting that candidate
-      const targetUserId = (['ADMIN', 'HR'].includes(req.user.role) && req.query.candidateId)
-        ? req.query.candidateId
-        : req.user.id;
+      const targetUserId =
+        (['ADMIN', 'HR'].includes(req.user.role) && req.query.candidateId)
+          ? req.query.candidateId
+          : req.user.id;
 
       const profile = await candidateService.getProfile(targetUserId);
 
@@ -23,6 +25,7 @@ class CandidateController {
   async updateProfile(req, res, next) {
     try {
       const { phone, skills, experienceYears, linkedinUrl } = req.body;
+
       const updatedProfile = await candidateService.updateProfile(req.user.id, {
         phone,
         skills,
@@ -54,6 +57,7 @@ class CandidateController {
     }
   }
 
+  // Existing function: Download resume
   async downloadResume(req, res, next) {
     try {
       const { id } = req.params;
@@ -66,7 +70,21 @@ class CandidateController {
       next(error);
     }
   }
+
+  // New function: Preview resume in browser
+  async previewResume(req, res, next) {
+    try {
+      const { id } = req.params;
+      const resume = await candidateService.getResumeForDownload(id, req.user);
+
+      res.setHeader('Content-Type', resume.mime_type);
+      res.setHeader('Content-Disposition', 'inline');
+
+      res.sendFile(path.resolve(resume.file_path));
+    } catch (error) {
+      next(error);
+    }
+  }
 }
 
 module.exports = new CandidateController();
-
