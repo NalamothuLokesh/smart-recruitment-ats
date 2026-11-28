@@ -98,12 +98,20 @@ export const jobsApi = {
 // ==========================================
 // 4. Candidate & Resumes API Client
 // ==========================================
+
 export const candidateApi = {
-  getProfile: (candidateId) => apiClient.get('/candidates/profile', { params: candidateId ? { candidateId } : {} }),
-  updateProfile: (profileData) => apiClient.put('/candidates/profile', profileData),
+  getProfile: (candidateId) =>
+    apiClient.get('/candidates/profile', {
+      params: candidateId ? { candidateId } : {}
+    }),
+
+  updateProfile: (profileData) =>
+    apiClient.put('/candidates/profile', profileData),
+
   uploadResume: (file) => {
     const formData = new FormData();
     formData.append('resume', file);
+
     return apiClient.post('/candidates/resume', formData, {
       headers: { 'Content-Type': 'multipart/form-data' }
     });
@@ -127,6 +135,17 @@ export const candidateApi = {
     link.click();
     link.remove();
     window.setTimeout(() => window.URL.revokeObjectURL(url), 1000);
+  },
+  previewResume: async (resumeId) => {
+    const token = localStorage.getItem('ats_token');
+    const response = await fetch(`${API_BASE_URL}/candidates/resume/${resumeId}/preview`, {
+      headers: { Authorization: `Bearer ${token}` }
+    });
+    if (!response.ok) {
+      throw new Error('Failed to preview resume file.');
+    }
+    const blob = await response.blob();
+    return window.URL.createObjectURL(blob);
   },
   deleteResume: (resumeId) => apiClient.delete(`/candidates/resume/${resumeId}`)
 };

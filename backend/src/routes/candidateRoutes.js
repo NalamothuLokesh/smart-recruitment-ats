@@ -63,6 +63,15 @@ router.get(
   [param('id').isInt().withMessage('Resume ID must be an integer.'), validate],
   candidateController.downloadResume
 );
+router.get(
+  '/resume/:id/preview',
+  requireAuth,
+  [
+    param('id').isInt().withMessage('Resume ID must be an integer.'),
+    validate
+  ],
+  candidateController.previewResume
+);
 
 /**
  * @route   DELETE /api/v1/candidates/resume/:id

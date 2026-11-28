@@ -63,6 +63,11 @@ export const HrPipelineBoard = () => {
   const [loading, setLoading] = useState(true);
   const [activeCandidate, setActiveCandidate] = useState(null);
 
+  // Resume Preview State
+  const [previewUrl, setPreviewUrl] = useState(null);
+  const [previewLoading, setPreviewLoading] = useState(false);
+  const [previewError, setPreviewError] = useState('');
+
   // Activity History State
   const [showActivityDrawer, setShowActivityDrawer] = useState(false);
   const [activityData, setActivityData] = useState(null);
@@ -186,6 +191,38 @@ export const HrPipelineBoard = () => {
     candidateApi
       .downloadResume(resumeId, filename)
       .catch((err) => alert(err.message));
+  };
+  // Preview candidate resume
+  const handlePreviewResume = async (resumeId) => {
+    try {
+      setPreviewLoading(true);
+      setPreviewError('');
+
+      // Close and clean up any previous preview URL
+      if (previewUrl) {
+        window.URL.revokeObjectURL(previewUrl);
+        setPreviewUrl(null);
+      }
+
+      const url = await candidateApi.previewResume(resumeId);
+
+      setPreviewUrl(url);
+    } catch (err) {
+      console.error('Failed to preview resume:', err);
+      setPreviewError(err.message || 'Failed to preview resume.');
+    } finally {
+      setPreviewLoading(false);
+    }
+  };
+
+  // Close resume preview
+  const handleClosePreview = () => {
+    if (previewUrl) {
+      window.URL.revokeObjectURL(previewUrl);
+    }
+
+    setPreviewUrl(null);
+    setPreviewError('');
   };
 
   return (
@@ -575,18 +612,86 @@ export const HrPipelineBoard = () => {
               </button>
 
               {activeCandidate.resume_id && (
-                <button
-                  onClick={() =>
-                    handleDownloadResume(
-                      activeCandidate.resume_id,
-                      activeCandidate.resume_filename
-                    )
-                  }
-                  className="w-full py-2.5 px-4 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-800 dark:text-slate-200 rounded-xl font-medium text-xs sm:text-sm flex items-center justify-center gap-2 border border-slate-200 dark:border-slate-700 transition-colors"
-                >
-                  <Download className="w-4 h-4 text-indigo-600 dark:text-indigo-400 flex-shrink-0" />
-                  <span className="truncate">Download Resume ({activeCandidate.resume_filename})</span>
-                </button>
+                <div className="space-y-2">
+                  <button
+                    onClick={() => handlePreviewResume(activeCandidate.resume_id)}
+                    disabled={previewLoading}
+                    className="w-full py-2.5 px-4 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-semibold text-xs sm:text-sm transition-colors flex items-center justify-center gap-2 disabled:opacity-50"
+                  >
+                    <FileText className="w-4 h-4" />
+                    <span>{previewLoading ? 'Loading Preview...' : 'Preview Resume'}</span>
+                  </button>
+
+                  <button
+                    onClick={() =>
+                      handleDownloadResume(
+                        activeCandidate.resume_id,
+                        activeCandidate.resume_filename
+                      )
+                    }
+                    className="w-full py-2.5 px-4 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-800 dark:text-slate-200 rounded-xl font-medium text-xs sm:text-sm flex items-center justify-center gap-2 border border-slate-200 dark:border-slate-700 transition-colors"
+                  >
+                    <Download className="w-4 h-4 text-indigo-600 dark:text-indigo-400 flex-shrink-0" />
+                    <span className="truncate">Download Resume ({activeCandidate.resume_filename})</span>
+                  </button>
+
+                  {previewError && (
+                    <p className="text-xs text-rose-500 text-center font-medium">{previewError}</p>
+                  )}
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Resume Preview Modal (z-[80]) */}
+      {(previewUrl || previewLoading || previewError) && (
+        <div className="fixed inset-0 z-[80] bg-slate-950/75 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="bg-white dark:bg-[#161b22] w-full max-w-5xl h-[88vh] rounded-2xl shadow-2xl flex flex-col overflow-hidden border border-slate-200 dark:border-[#30363d]">
+            {/* Preview Header */}
+            <div className="flex items-center justify-between p-4 border-b border-slate-200 dark:border-[#30363d] flex-shrink-0">
+              <div className="flex items-center gap-2.5">
+                <FileText className="w-5 h-5 text-indigo-600 dark:text-indigo-400" />
+                <div>
+                  <h3 className="text-base font-bold text-slate-900 dark:text-white">
+                    Resume Preview
+                  </h3>
+                  <p className="text-xs text-slate-500 dark:text-slate-400">
+                    {activeCandidate?.resume_filename || 'Candidate Resume'}
+                  </p>
+                </div>
+              </div>
+
+              <button
+                onClick={handleClosePreview}
+                className="p-1.5 rounded-lg text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+                title="Close Preview"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Preview Content */}
+            <div className="flex-1 bg-slate-100 dark:bg-slate-900 overflow-hidden relative">
+              {previewLoading && (
+                <div className="h-full flex items-center justify-center text-indigo-600 dark:text-indigo-400 font-medium">
+                  Loading resume preview...
+                </div>
+              )}
+
+              {previewError && (
+                <div className="h-full flex items-center justify-center p-6 text-center">
+                  <p className="text-rose-600 dark:text-rose-400 text-sm font-medium">{previewError}</p>
+                </div>
+              )}
+
+              {previewUrl && !previewLoading && (
+                <iframe
+                  src={previewUrl}
+                  title="Resume Preview"
+                  className="w-full h-full border-0"
+                />
               )}
             </div>
           </div>
